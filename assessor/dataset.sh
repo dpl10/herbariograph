@@ -1,6 +1,14 @@
 #!/bin/bash
 
 ###
+### REUSED SCRIPTS
+###
+
+DOWNLOAD='XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); wget -O "$XXH".jpg "$URL"; MINWAIT=3; MAXWAIT=7; sleep $((MINWAIT+RANDOM % (MAXWAIT-MINWAIT)))'
+
+
+
+###
 ### DATASET CREATION
 ###
 
@@ -88,29 +96,62 @@ GBIF=0117680-220831081235567.zip
 
 ### BIOCULTURAL SPECIMENS
 
-### GH (Economic Herbarium of Oakes Ames) and K (Economic Botany Collection)
-unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print tolower($68),$60,$61,$189}}' > x ### occurrenceID, institutionCode, collectionCode, scientificName
+### GH (Economic Herbarium of Oakes Ames) and REFLORA (Economic Botany Collection)
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print $68,$60,$61,$189}}' > x
+sort -t$'\t' -k 1b,1 x > ECON+EBC-specimens.tsv ### occurrenceID, institutionCode, collectionCode, scientificName; 7,341 records
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID; 7,341 records
+sort -t$'\t' -k 1b,1 s > t
+awk -F'\t' '{print $1}' t > g
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' > m ### gbifID, identifier
+sort -t$'\t' -k 1b,1 m > n ### 40,430,745 records
+grep -f g n > o ### 7,478 records
+echo -n '' > y
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t o | cut -d$'\t' -f2- | grep -v EMPTY | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> y
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > ECON+EBC.tsv
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t o | cut -d$'\t' -f2- | grep -v EMPTY  | paste - y >> ECON+EBC.tsv ### 7,478 records
+
+mkdir -p original-images/ECON
+cd original-images/ECON
+grep -P 'ECON\tECON' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+mkdir -p original-images/EBC
+cd original-images/EBC
+grep -P 'EBC\tEBC' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### K (Economic Botany Collection)
+wget https://orphans.gbif.org/GB/1d31211e-350e-492a-a597-34d24bbc1769.zip
+echo -n '' > x
+unzip -c 1d31211e-350e-492a-a597-34d24bbc1769.zip image.txt | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | tr -d '"' | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\turl\txxh64' > K-EBC.tsv
+unzip -c 1d31211e-350e-492a-a597-34d24bbc1769.zip image.txt | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | tr -d '"' | paste - x >> K-EBC.tsv ### 2,441 records
+mkdir -p original-images/K
+cd original-images/K
+tail -n +2 ../../K-EBC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 ### Natural History Museum of Denmark (Biocultural Botany Collection)
 wget https://specify-snm.science.ku.dk/static/depository/export_feed/DwCA-BC.zip
-
+echo -n '' > x
+unzip -c DwCA-BC.zip Media.csv | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\turl\txxh64' > NHMD-BC.tsv
+unzip -c DwCA-BC.zip Media.csv | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | paste - x >> NHMD-BC.tsv ### 1,488 records
+mkdir -p original-images/NHMD
+cd original-images/NHMD
+tail -n +2 ../../NHMD-BC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 ### F, MO, US also have collections, but difficult to individually extract
-
-unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' '{print $60,$61}'
-
-EBC EBC
-ECON ECON
+# F https://collections-botany.fieldmuseum.org/list?f%5B0%5D=ss_CatCatalogSubset%3A%22Economic%20Botany%22
 
 
-https://specify-snm.science.ku.dk/static/depository/export_feed/DwCA-BC.zip
-https://orphans.gbif.org/GB/1d31211e-350e-492a-a597-34d24bbc1769.zip
-
-
-
-
-US
-https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379
 
 ### AESTHETICALLY PLEASING MOUNTED SPECIMENS
 # NIMA:
@@ -129,9 +170,7 @@ https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379
 
 
 
-
 #
 # remove duplicates
-# balance sample 8192 total; 1024 test; 1024 validation 
-# pretrain on imagenet (without plants) for out of distribution detection
+# pretrain on imagenet (without plants) for out-of-distribution detection
 #
