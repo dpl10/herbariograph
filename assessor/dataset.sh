@@ -96,7 +96,7 @@ GBIF=0117680-220831081235567.zip
 
 ### BIOCULTURAL SPECIMENS
 
-### GH (Economic Herbarium of Oakes Ames) and REFLORA (Economic Botany Collection)
+### GH (Economic Herbarium of Oakes Ames; ECON) and REFLORA (Economic Botany Collection; EBC)
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print $68,$60,$61,$189}}' > x
 sort -t$'\t' -k 1b,1 x > ECON+EBC-specimens.tsv ### occurrenceID, institutionCode, collectionCode, scientificName; 7,341 records
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID; 7,341 records
@@ -114,12 +114,12 @@ join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t o | cut -d$'\t' -f2- | grep -v EMPTY  | p
 
 mkdir -p original-images/ECON
 cd original-images/ECON
-grep -P 'ECON\tECON' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+grep -P 'ECON\tECON' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD" ### 7,168 images
 cd ../../
 
 mkdir -p original-images/EBC
 cd original-images/EBC
-grep -P 'EBC\tEBC' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+grep -P 'EBC\tEBC' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD" ### 303 images
 cd ../../
 
 ### K (Economic Botany Collection)
@@ -148,9 +148,14 @@ cd original-images/NHMD
 tail -n +2 ../../NHMD-BC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
+
+
 ### F, MO, US also have collections, but difficult to individually extract
 # F https://collections-botany.fieldmuseum.org/list?f%5B0%5D=ss_CatCatalogSubset%3A%22Economic%20Botany%22
 
+# Korean Ethnobotany
+# https://www.gbif.org/dataset/8300bfde-f762-11e1-a439-00145eb45e9a
+# https://www.gbif.org/occurrence/download?dataset_key=8300bfde-f762-11e1-a439-00145eb45e9a
 
 
 ### AESTHETICALLY PLEASING MOUNTED SPECIMENS
