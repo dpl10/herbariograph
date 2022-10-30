@@ -1,17 +1,51 @@
 # DATASET
 
-The dataset was constructed from a variety of public data sources detailed below. Each image was manually reviewed and a total of 8,192 images per class were randomly selected: 7,168 train, 512 test, and 512 validate.
+The dataset was constructed from a variety of public data sources detailed below. Each image was manually reviewed and a total of 8,192 images per class were randomly selected: 7,168 train, 512 test, and 512 validate. The file XXX details the origin of each image.
+
+<!-- table of classes and image sources -->
+
+
+## Aesthetically pleasing mounted herbarium specimen images
+
+<!-- sample images -->
+
+
+## Biocultural specimen images
+
+ECON [Harvard University Economic Herbarium of Oakes Ames](https://huh.harvard.edu/pages/economic-herbarium-oakes-ames-econ) 
+
+F [Field Museum Timothy C. Plowman Economic Botany Collection](https://www.fieldmuseum.org/node/5211)
+
+K [Royal Botanic Gardens Kew Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769)
+
+NHMD [Natural History Museum of Denmark Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379)
+
+<!-- MO -->
+
+<!-- sample images -->
+
+
+## Carpological specimen images
+
+<!-- sample images -->
 
 
 ## Illustrations
 
-Vascular plant illustrations were sourced from the [Biodiversity Heritage Library (BHL)](https://www.biodiversitylibrary.org/). Collections of images were manually downloaded via a [curated collection of albums](https://www.flickr.com/photos/biodivlibrary/albums). Downloaded images were further processed...
+Vascular plant illustrations were sourced from the [Biodiversity Heritage Library (BHL)](https://www.biodiversitylibrary.org/). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Downloaded images were further processed to remove non–vascular plant images as well as to segregate images into color versus monochrome/grayscale classes. 
+<!-- First run: no maps, portraits, landscapes, and altered or natural photographs, fungi, physiology diagrams; Second: Code Color vs. Gray; Third: 65.4% ok in color; additional cleaning (maps + yellowish and sepia appearance) -->
 
-First run: no maps, portraits, landscapes, and altered or natural photographs, fungi, physiology diagrams
+<!-- sample images -->
 
-Second: Code Color vs. Gray
 
-Third: 65.4% ok in color; additional cleaning (maps+ yellowish and sepia appearance)
+## Invisible mounted specimen images
+
+<!-- sample images -->
+
+
+## Label images
+
+<!-- sample images -->
 
 
 ## Live plant images
@@ -22,16 +56,18 @@ manually separated from MO herbarium2022 download
 
 from NY Emu a maximum of 15 images per genus
 
+<!-- sample images -->
 
-## Biocultural specimens
 
-Natural History Museum of Denmark [Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379)
+## Ordinary mounted herbarium specimen images
 
-GH [Economic Herbarium of Oakes Ames (ECON)](https://huh.harvard.edu/pages/economic-herbarium-oakes-ames-econ) 
+<!-- sample images -->
 
-K [Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769)
 
-REFLORA [Economic Botany Collection (EBC)](https://www.gbif.org/dataset/a71ae102-f65d-4bd5-9915-bb1a96d86c16)
+## Ordinary mounted herbarium specimen closeup images
+
+<!-- sample images -->
+
 
 
 # INFORMER MODEL ARCHITECTURE

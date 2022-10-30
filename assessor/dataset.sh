@@ -12,8 +12,28 @@ DOWNLOAD='XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | a
 ### DATASET CREATION
 ###
 
-### ILLUSTRATIONS
+HERBARIA=( 'F' 'GH' 'K' 'MO' 'NHMD' 'NY' )
+for HERBARIUM in "${HERBARIA[@]}"; do
+   mkdir -p 'raw-dataset/aesthetically-pleasing-mounted-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/biocultural-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/carpological-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/invisible-mounted-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/labels/'$HERBARIUM
+   mkdir -p 'raw-dataset/live-plants/'$HERBARIUM
+   mkdir -p 'raw-dataset/ordinary-mounted-specimens-closeup/'$HERBARIUM
+   mkdir -p 'raw-dataset/ordinary-mounted-specimens/'$HERBARIUM
+done
+mv raw-dataset/biocultural-specimens/GH raw-dataset/biocultural-specimens/ECON
+mkdir -p raw-dataset/illustrations-color/BHL
+mkdir -p raw-dataset/illustrations-gray/BHL
 
+find raw-dataset -type d | xargs -I {} -P 1 mkdir -p 'final-dataset/{}'
+
+
+
+###
+### ILLUSTRATIONS
+###
 ### manually download plant illustrations from BHL via https://www.flickr.com/photos/biodivlibrary/albums
 ### manually removed non-illustrations 
 
@@ -67,15 +87,17 @@ tail +2 bhl-fuzz.tsv | awk -F'\t' '{if(-10.27471+(-77.86728*$3)+(320.70587*$5)+(
 
 
 
+###
 ### LIVE PLANT IMAGES
-
-### manually separated from MO herbarium2022 download
+###
+### manually separated from MO Herbarium2022 download
 ### from NY Emu a maximum of 15 images per genus (by Leanna McMillin)
 
 
 
-### SPECIMEN IMAGES
-
+###
+### GBIF RECORDED SPECIMEN IMAGES
+###
 ### manual search of GBIF 24 October 2022
 # Download format: DWCA
 # Filter used:
@@ -94,16 +116,16 @@ GBIF=0117680-220831081235567.zip
 
 
 
+###
 ### BIOCULTURAL SPECIMENS
+###
 
-### GH (Economic Herbarium of Oakes Ames; ECON) and REFLORA (Economic Botany Collection; EBC)
-unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print $68,$60,$61,$189}}' > x
-sort -t$'\t' -k 1b,1 x > ECON+EBC-specimens.tsv ### occurrenceID, institutionCode, collectionCode, scientificName; 7,341 records
+### GH (Economic Herbarium of Oakes Ames; ECON) and REFLORA (Economic Botany Collection; EBC) via GBIF
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID; 7,341 records
 sort -t$'\t' -k 1b,1 s > t
 awk -F'\t' '{print $1}' t > g
-unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' > m ### gbifID, identifier
-sort -t$'\t' -k 1b,1 m > n ### 40,430,745 records
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' > m ### gbifID, identifier; 40,430,745 records
+sort -t$'\t' -k 1b,1 m > n
 grep -f g n > o ### 7,478 records
 echo -n '' > y
 join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t o | cut -d$'\t' -f2- | grep -v EMPTY | while read -r line; do
@@ -112,17 +134,20 @@ done
 echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > ECON+EBC.tsv
 join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t o | cut -d$'\t' -f2- | grep -v EMPTY  | paste - y >> ECON+EBC.tsv ### 7,478 records
 
-mkdir -p original-images/ECON
-cd original-images/ECON
+mkdir -p original-images/ECON-original
+cd original-images/ECON-original
 grep -P 'ECON\tECON' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD" ### 7,168 images
-cd ../../
+cd ../
+mkdir ECON
+../../resizeImage.py -i ECON-original -o ECON -q 94 -p -s 4096
+cd ../
 
 mkdir -p original-images/EBC
 cd original-images/EBC
-grep -P 'EBC\tEBC' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD" ### 303 images
-cd ../../
+grep -P 'EBC\tEBC' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P 1 bash -c "$DOWNLOAD" ### 303 downloads, all empty files
+cd ../../ 
 
-### K (Economic Botany Collection)
+### K (Economic Botany Collection; 24 October 2022)
 wget https://orphans.gbif.org/GB/1d31211e-350e-492a-a597-34d24bbc1769.zip
 echo -n '' > x
 unzip -c 1d31211e-350e-492a-a597-34d24bbc1769.zip image.txt | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | tr -d '"' | while read -r line; do
@@ -135,7 +160,7 @@ cd original-images/K
 tail -n +2 ../../K-EBC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
-### Natural History Museum of Denmark (Biocultural Botany Collection)
+### Natural History Museum of Denmark (Biocultural Botany Collection; 24 October 2022)
 wget https://specify-snm.science.ku.dk/static/depository/export_feed/DwCA-BC.zip
 echo -n '' > x
 unzip -c DwCA-BC.zip Media.csv | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | while read -r line; do
@@ -148,30 +173,162 @@ cd original-images/NHMD
 tail -n +2 ../../NHMD-BC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
+### US (Anthropology; 25 October 2022)
+### manually downloaded records with images and material type = fibers by continent/region (to partially overcome the 5k limit [United States truncated at 5k]) from https://collections.nmnh.si.edu/search/anth/ 
+
+### F (Field Museum Economic Botany Collection; 28 October 2022)
+for k in {0..542}; do
+   save-page.sh 'https://collections-botany.fieldmuseum.org/list?f%5B0%5D=ss_CatCatalogSubset%3A%22Economic%20Botany%22&page='$k --browser firefox --load-wait-time 13 --save-wait-time 3 --destination 'F-page'$k
+done
+find F -type f -name 'F-page*' | xargs grep -h -Po '(?<=href=")[^"]*' | grep '.jpg$' | sort -u | awk '{print "F\t" $1}' > x
+echo -n '' > y
+cat x | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> y
+done
+echo -e 'institutionCode\turl\txxh64' > F-EBC.tsv
+paste x y >> F-EBC.tsv ### 9,017 records
+mkdir -p original-images/F
+cd original-images/F
+tail -n +2 ../../F-EBC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### MO also has collections, but difficult to individually extract
+# MO (also) http://www.mobot.org/plantscience/resbot/Econ/EconBot01.htm
 
 
-### F, MO, US also have collections, but difficult to individually extract
-# F https://collections-botany.fieldmuseum.org/list?f%5B0%5D=ss_CatCatalogSubset%3A%22Economic%20Botany%22
 
-# Korean Ethnobotany
-# https://www.gbif.org/dataset/8300bfde-f762-11e1-a439-00145eb45e9a
-# https://www.gbif.org/occurrence/download?dataset_key=8300bfde-f762-11e1-a439-00145eb45e9a
+###
+### AESTHETICALLY PLEASING MOUNTED HERBARIUM SPECIMENS
+###
+### 374 pleasing specimens from NY Emu (by Leanna McMillin), manually filtered down to 334
+
+### 334 ordinary specimens from NY (maximum of 1 per genus)
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID; 2,727,071 records
+sort -t$'\t' -k 1b,1 s > t
+bloom -gz create -p 0.0000001 -n $(wc -l t | awk '{print $1}') NY-specimens.bloom.gz
+awk -F'\t' '{print $1}' t | bloom -gz insert NY-specimens.bloom.gz
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check NY-specimens.bloom.gz > m ### gbifID, identifier; 2,786,110 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for 1000 NY average specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="NY")&&($3=="NY")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > a ### 2,786,106 records
+sort -n a | python3 -c '
+import sys
+OCCURRENCEID = 1
+INSTITUTIONCODE = 2
+COLLECTIONCODE = 3
+SCIENTIFICNAME = 4
+URL = 5
+MAX = 1000
+count = 0
+genera = {} ### genus => True
+for line in sys.stdin:
+   columns = line.rstrip().split("\t")
+   name = columns[SCIENTIFICNAME].split(" ")
+   if count < MAX and name[0] not in genera:
+      genera[name[0]] = True
+      print(f"{columns[OCCURRENCEID]}\t{columns[INSTITUTIONCODE]}\t{columns[COLLECTIONCODE]}\t{columns[SCIENTIFICNAME]}\t{columns[URL]}")
+      count += 1
+' > b
+echo -n '' > x
+cat b | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > NY-ordinary-aesthetic.tsv
+paste b x >> NY-ordinary-aesthetic.tsv ### 1,000 records
+mkdir -p original-images/NY-ordinary
+cd original-images/NY-ordinary
+tail -n +2 ../../NY-ordinary-aesthetic.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+### manually screened 334 images in default sort order
+
+#
+# 
+#
 
 
-### AESTHETICALLY PLEASING MOUNTED SPECIMENS
+
 # NIMA:
 # https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8352823
 # https://ai.googleblog.com/2017/12/introducing-nima-neural-image-assessment.html
 # https://github.com/titu1994/neural-image-assessment
 # https://github.com/idealo/image-quality-assessment
+# TRes:
+# https://arxiv.org/pdf/2108.06858.pdf
+# https://github.com/isalirezag/TReS
+# SqueezeNet https://pypi.org/project/tf2cv/ + https://openaccess.thecvf.com/content_cvpr_2018/papers/Zhang_The_Unreasonable_Effectiveness_CVPR_2018_paper.pdf
+
+
+#
+# NIMA == does not work
+#
+
+
+mkdir nima
+cd nima
+wget https://github.com/idealo/image-quality-assessment/archive/refs/heads/master.zip
+unzip master.zip
+cd image-quality-assessment-master
+docker build -t nima-cpu . -f Dockerfile.cpu ### gpu fails due to GPG signing error
+cd ../../
+
+### pleasing
+nima/image-quality-assessment-master/predict --docker-image nima-cpu --base-model-name MobileNet --weights-file $(pwd)/nima/image-quality-assessment-master/models/MobileNet/weights_mobilenet_aesthetic_0.07.hdf5 --image-source $(pwd)/original-images/NY-pleasing > a
+tail -n +2 a | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @tsv' | tail -n +2 > b
+nima/image-quality-assessment-master/predict --docker-image nima-cpu --base-model-name MobileNet --weights-file $(pwd)/nima/image-quality-assessment-master/models/MobileNet/weights_mobilenet_technical_0.11.hdf5 --image-source $(pwd)/original-images/NY-pleasing > t
+tail -n +2 t | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @tsv' | tail -n +2 > u
+paste b u | awk -F'\t' 'BEGIN{OFS="\t";print "image","type","aesthetic","technical"}{print $1,"pleasing",$2,$4}' > nima.tsv 
+grep pleasing nima.tsv | datamash mean 3 mean 4 ### 5.6472267427625	4.5191672003484
+
+### ordinary
+nima/image-quality-assessment-master/predict --docker-image nima-cpu --base-model-name MobileNet --weights-file $(pwd)/nima/image-quality-assessment-master/models/MobileNet/weights_mobilenet_aesthetic_0.07.hdf5 --image-source $(pwd)/original-images/NY-ordinary > a
+tail -n +2 a | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @tsv' | tail -n +2 > b
+nima/image-quality-assessment-master/predict --docker-image nima-cpu --base-model-name MobileNet --weights-file $(pwd)/nima/image-quality-assessment-master/models/MobileNet/weights_mobilenet_technical_0.11.hdf5 --image-source $(pwd)/original-images/NY-ordinary > t
+tail -n +2 t | jq -r '(map(keys) | add | unique) as $cols | map(. as $row | $cols | map($row[.])) as $rows | $cols, $rows[] | @tsv' | tail -n +2 > u
+paste b u | awk -F'\t' 'BEGIN{OFS="\t"}{print $1,"ordinary",$2,$4}' >> nima.tsv 
+grep ordinary nima.tsv | datamash mean 3 mean 4 ### 5.5303331218473	4.5123623302256
+
+R CMD BATCH aesthetic.r 
+
+
+
+###
+### INVISIBLE MOUNTED SPECIMENS
+###
+
+# NY from ordinary-aesthetic download
+
+
+
+###
+### CARPOLOGICAL
+###
 
 
 
 
 
 
+###
+### ORDINARY MOUNTED SPECIMENS
+###
+
+# F
+# GH
+# K
+# MO
+# NHMD
+# NY
 
 
+
+###
+### ORDINARY MOUNTED SPECIMENS CLOSEUP
+###
+
+
+
+###
+### LABELS
+###
 
 
 
@@ -179,3 +336,4 @@ cd ../../
 # remove duplicates
 # pretrain on imagenet (without plants) for out-of-distribution detection
 #
+
