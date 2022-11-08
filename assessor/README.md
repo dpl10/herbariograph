@@ -7,7 +7,7 @@ The dataset was constructed from a variety of public data sources detailed below
 
 ## Biocultural specimen images
 
-Biocultural specimen images were sourced from a selection of specialty collections: the [Field Museum Timothy C. Plowman Economic Botany Collection](https://www.fieldmuseum.org/node/5211), the [Natural History Museum of Denmark Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379), and the [Royal Botanic Gardens Kew Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769). Downloaded images were further processed to remove non–vascular plant images, mounted specimens, and specimens that had not been significantly altered from their natural state.
+Biocultural specimen images were sourced from a selection of specialty collections: the [Field Museum Timothy C. Plowman Economic Botany Collection](https://www.fieldmuseum.org/node/5211), the [Natural History Museum of Denmark Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379), and the [Royal Botanic Gardens Kew Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769). Downloaded images were manually screened to remove non–vascular plant images, mounted specimens, and specimens that had not been significantly altered from their natural state.
 
 <!-- MO -->
 
@@ -16,7 +16,7 @@ Biocultural specimen images were sourced from a selection of specialty collectio
 
 ## Illustrations
 
-Vascular plant illustrations were sourced from the [Biodiversity Heritage Library (BHL)](https://www.biodiversitylibrary.org/). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Downloaded images were further processed to remove non–vascular plant images as well as to segregate plant illustrations into color versus monochrome/grayscale classes. 
+Vascular plant illustrations were sourced from the [Biodiversity Heritage Library (BHL)](https://www.biodiversitylibrary.org/). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Downloaded images were manually screened to remove non–vascular plant images as well as to segregate plant illustrations into color versus monochrome/grayscale classes. 
 <!-- First run: no maps, portraits, landscapes, and altered or natural photographs, fungi, physiology diagrams; Second: Code Color vs. Gray; Third: 65.4% ok in color; additional cleaning (maps + yellowish and sepia appearance) -->
 
 ### Color illustrations
@@ -36,7 +36,7 @@ manually separated from MO herbarium2022 download
 
 from NY Emu a maximum of 15 images per genus
 
-no landscapes, people
+Downloaded images were manually screened to remove landscapes and people.
 
 <!-- sample images -->
 
@@ -55,7 +55,7 @@ no landscapes, people
 
 ## Unmounted and invisible specimen images
 
-Images of unmounted specimens and images lacking a visible specimen were selected from the bulk GBIF download by searching for records with multiple images per occurrenceID. One collection (occurrenceID) per genus per institution was randomly selected for download and images were sorted into carpological, invisible, label only, mounted specimen closeup images, and xylogical specimen images.
+Images of unmounted specimens and images lacking a visible specimen were selected from the bulk GBIF download by searching for records with multiple images per occurrenceID. One collection (occurrenceID) per genus per institution was randomly selected for download and images were manually sorted into carpological, invisible, label only, mounted specimen closeup images, and xylogical specimen images.
 
 ### Carpological specimen images
 
