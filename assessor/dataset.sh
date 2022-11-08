@@ -6,24 +6,66 @@
 
 DOWNLOAD='XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); wget -O "$XXH".jpg "$URL"; MINWAIT=3; MAXWAIT=7; sleep $((MINWAIT+RANDOM % (MAXWAIT-MINWAIT)))'
 
+SELECT1000='
+import sys
+OCCURRENCEID = 1
+INSTITUTIONCODE = 2
+COLLECTIONCODE = 3
+SCIENTIFICNAME = 4
+URL = 5
+MAX = 1000
+count = 0
+genera = {} ### genus => True
+for line in sys.stdin:
+   columns = line.rstrip().split("\t")
+   name = columns[SCIENTIFICNAME].split(" ")
+   if count < MAX and name[0] not in genera:
+      genera[name[0]] = True
+      print(f"{columns[OCCURRENCEID]}\t{columns[INSTITUTIONCODE]}\t{columns[COLLECTIONCODE]}\t{columns[SCIENTIFICNAME]}\t{columns[URL]}")
+      count += 1
+'
+
+SELECTDUP='
+import sys
+OCCURRENCEID = 1
+INSTITUTIONCODE = 2
+COLLECTIONCODE = 3
+SCIENTIFICNAME = 4
+URL = 5
+MAX = 100000
+count = 0
+genera = {} ### genus => True
+oid = {} ### occurenceID => True
+for line in sys.stdin:
+   columns = line.rstrip().split("\t")
+   name = columns[SCIENTIFICNAME].split(" ")
+   if columns[OCCURRENCEID] in oid:
+      print(f"{columns[OCCURRENCEID]}\t{columns[INSTITUTIONCODE]}\t{columns[COLLECTIONCODE]}\t{columns[SCIENTIFICNAME]}\t{columns[URL]}")
+   elif count < MAX and name[0] not in genera:
+      genera[name[0]] = True
+      oid[columns[OCCURRENCEID]] = True
+      print(f"{columns[OCCURRENCEID]}\t{columns[INSTITUTIONCODE]}\t{columns[COLLECTIONCODE]}\t{columns[SCIENTIFICNAME]}\t{columns[URL]}")
+      count += 1
+'
+
 
 
 ###
 ### DATASET CREATION
 ###
 
-HERBARIA=( 'F' 'GH' 'K' 'MO' 'NHMD' 'NY' )
+HERBARIA=( 'C' 'F' 'K' 'MO' 'NY' )
 for HERBARIUM in "${HERBARIA[@]}"; do
    mkdir -p 'raw-dataset/aesthetically-pleasing-mounted-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/biocultural-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/carpological-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/invisible-mounted-specimens/'$HERBARIUM
-   mkdir -p 'raw-dataset/labels/'$HERBARIUM
+   mkdir -p 'raw-dataset/labels-only/'$HERBARIUM
    mkdir -p 'raw-dataset/live-plants/'$HERBARIUM
    mkdir -p 'raw-dataset/ordinary-mounted-specimens-closeup/'$HERBARIUM
    mkdir -p 'raw-dataset/ordinary-mounted-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/xylogical-specimens/'$HERBARIUM
 done
-mv raw-dataset/biocultural-specimens/GH raw-dataset/biocultural-specimens/ECON
 mkdir -p raw-dataset/illustrations-color/BHL
 mkdir -p raw-dataset/illustrations-gray/BHL
 
@@ -75,7 +117,7 @@ R CMD BATCH gray.r
 # var.2     12.429549 320.70587
 # var.3     38.943431 -49.63974
 
-### gray scale versus color
+### grayscale versus color
 mkdir test-out
 find original-images/BHL/illustrations -type f -name '*.jpg' | awk -F/ '{print $NF}' | xargs -I {} -P $(nproc) convert original-images/BHL/illustrations/{} -separate test-out/{}
 echo 'file,R,r,G,g,B,b' | tr ',' '\t' > bhl-fuzz.tsv
@@ -111,8 +153,160 @@ tail +2 bhl-fuzz.tsv | awk -F'\t' '{if(-10.27471+(-77.86728*$3)+(320.70587*$5)+(
 #   ]
 # }
 wget https://api.gbif.org/v1/occurrence/download/request/0117680-220831081235567.zip
-GBIF=0117680-220831081235567.zip
-# unzip -c $GBIF occurrence.txt | head -3 | tail -1 | tr '\t' '\n' | awk '{print NR ": " $1}'
+GBIF=0117680-220831081235567.zip 
+### unzip -c $GBIF occurrence.txt | head -3 | tail -1 | tr '\t' '\n' | awk '{print NR ": " $1}'
+
+### C
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NHMD")&&(($61=="BC")||($61=="CB")||($61=="DK"))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 61,437 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') C-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert C-specimens.bloom.gz
+
+### F
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="F")&&($61=="Botany")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 635,879 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') F-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert F-specimens.bloom.gz
+
+### K
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="K")&&($61=="K")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 76,033 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') K-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert K-specimens.bloom.gz
+
+### MO
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MO")&&($61=="MO")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 476,015 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MO-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert MO-specimens.bloom.gz
+
+### NY
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 2,727,071 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') NY-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert NY-specimens.bloom.gz
+
+
+
+###
+### CARPOLOGICAL, INVISIBLE MOUNTED SPECIMENS, LABELS, ORDINARY MOUNTED SPECIMENS CLOSEUP, AND XYLOGICAL
+###
+
+### C
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NHMD")&&(($61=="BC")||($61=="CB")||($61=="DK"))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 61,437 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check C-specimens.bloom.gz > m ### gbifID, identifier; 61,933 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for C specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="NHMD")&&(($3=="BC")||($3=="CB")||($3=="DK"))){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > C-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 61,933 records
+
+awk -F'\t' '{print $2}' C-specimens.tsv | sort | uniq -d > d ### 495 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') C-multi-specimens.bloom.gz
+cat d | bloom -gz insert C-multi-specimens.bloom.gz
+sort -n C-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check C-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 23 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > C-multi-specimens.tsv
+paste e x >> C-multi-specimens.tsv ### 23 records
+mkdir -p original-images/C-multi
+cd original-images/C-multi
+tail -n +2 ../../C-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+
+### F
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="F")&&($61=="Botany")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 635,879 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check F-specimens.bloom.gz > m ### gbifID, identifier; 1,317,863 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for F specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="F")&&($3=="Botany")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > F-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 1,317,860 records
+
+awk -F'\t' '{print $2}' F-specimens.tsv | sort | uniq -d > d ### 629,634 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') F-multi-specimens.bloom.gz
+cat d | bloom -gz insert F-multi-specimens.bloom.gz
+sort -n F-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check F-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 15,270 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > F-multi-specimens.tsv
+paste e x >> F-multi-specimens.tsv ### 15,270 records
+mkdir -p original-images/F-multi
+cd original-images/F-multi
+tail -n +2 ../../F-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+
+### K
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="K")&&($61=="K")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 76,033 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check K-specimens.bloom.gz > m ### gbifID, identifier; 76,055 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for K specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="K")&&($3=="K")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > K-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 76,050 records
+
+awk -F'\t' '{print $2}' K-specimens.tsv | sort | uniq -d > d ### 16 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') K-multi-specimens.bloom.gz
+cat d | bloom -gz insert K-multi-specimens.bloom.gz
+sort -n K-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check K-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 24 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > K-multi-specimens.tsv
+paste e x >> K-multi-specimens.tsv ### 24 records, all blank images
+mkdir -p original-images/K-multi
+cd original-images/K-multi
+tail -n +2 ../../K-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+
+### MO
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MO")&&($61=="MO")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 476,015 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check MO-specimens.bloom.gz > m ### gbifID, identifier; 674,920 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for MO specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="MO")&&($3=="MO")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > MO-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 674,917 records
+
+awk -F'\t' '{print $2}' MO-specimens.tsv | sort | uniq -d > d ### 73,838 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') MO-multi-specimens.bloom.gz
+cat d | bloom -gz insert MO-multi-specimens.bloom.gz
+sort -n MO-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check MO-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 23,009 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > MO-multi-specimens.tsv
+paste e x >> MO-multi-specimens.tsv ### 23,009 records
+mkdir -p original-images/MO-multi
+cd original-images/MO-multi
+tail -n +2 ../../MO-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+
+### NY
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 2,727,071 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check NY-specimens.bloom.gz > m ### gbifID, identifier; 2,786,110 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for NY specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="NY")&&($3=="NY")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > NY-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 2,786,106 records
+
+awk -F'\t' '{print $2}' NY-specimens.tsv | sort | uniq -d > d ### 39,627 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') NY-multi-specimens.bloom.gz
+cat d | bloom -gz insert NY-multi-specimens.bloom.gz
+sort -n NY-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check NY-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 7,374 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > NY-multi-specimens.tsv
+paste e x >> NY-multi-specimens.tsv ### 7,374 records
+mkdir -p original-images/NY-multi
+cd original-images/NY-multi
+tail -n +2 ../../NY-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+
+# NY from ordinary-aesthetic download?
+
+
+
+
 
 
 
@@ -121,7 +315,7 @@ GBIF=0117680-220831081235567.zip
 ###
 
 ### GH (Economic Herbarium of Oakes Ames; ECON) and REFLORA (Economic Botany Collection; EBC) via GBIF
-unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID; 7,341 records
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($68)&&length($60)&&length($61)&&length($189)&&((($60=="ECON")&&($61=="ECON"))||(($60=="EBC")&&($61=="EBC"))||(($60=="K")&&($61=="Economic Botany Collection")))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 7,341 records
 sort -t$'\t' -k 1b,1 s > t
 awk -F'\t' '{print $1}' t > g
 unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' > m ### gbifID, identifier; 40,430,745 records
@@ -136,7 +330,7 @@ join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t o | cut -d$'\t' -f2- | grep -v EMPTY  | p
 
 mkdir -p original-images/ECON-original
 cd original-images/ECON-original
-grep -P 'ECON\tECON' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD" ### 7,168 images
+grep -P 'ECON\tECON' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD" ### 7,168 images, all sheets
 cd ../
 mkdir ECON
 ../../resizeImage.py -i ECON-original -o ECON -q 94 -p -s 4096
@@ -160,21 +354,22 @@ cd original-images/K
 tail -n +2 ../../K-EBC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
-### Natural History Museum of Denmark (Biocultural Botany Collection; 24 October 2022)
+### C (Natural History Museum of Denmark Biocultural Botany Collection; 24 October 2022)
 wget https://specify-snm.science.ku.dk/static/depository/export_feed/DwCA-BC.zip
 echo -n '' > x
 unzip -c DwCA-BC.zip Media.csv | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | while read -r line; do
    echo -n "$line" | xxh64sum | awk '{print $1}' >> x
 done
-echo -e 'occurrenceID\turl\txxh64' > NHMD-BC.tsv
-unzip -c DwCA-BC.zip Media.csv | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | paste - x >> NHMD-BC.tsv ### 1,488 records
-mkdir -p original-images/NHMD
-cd original-images/NHMD
-tail -n +2 ../../NHMD-BC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+echo -e 'occurrenceID\turl\txxh64' > C-BC.tsv
+unzip -c DwCA-BC.zip Media.csv | tail +4 | awk -F, 'BEGIN{OFS="\t"}{print $1,$2}' | grep "\S" | paste - x >> C-BC.tsv ### 1,488 records
+mkdir -p original-images/C
+cd original-images/C
+tail -n +2 ../../C-BC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
 ### US (Anthropology; 25 October 2022)
 ### manually downloaded records with images and material type = fibers by continent/region (to partially overcome the 5k limit [United States truncated at 5k]) from https://collections.nmnh.si.edu/search/anth/ 
+### permission required... aborting
 
 ### F (Field Museum Economic Botany Collection; 28 October 2022)
 for k in {0..542}; do
@@ -193,6 +388,9 @@ tail -n +2 ../../F-EBC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc)
 cd ../../
 
 ### MO also has collections, but difficult to individually extract
+#
+# add 
+#
 # MO (also) http://www.mobot.org/plantscience/resbot/Econ/EconBot01.htm
 
 
@@ -200,34 +398,15 @@ cd ../../
 ###
 ### AESTHETICALLY PLEASING MOUNTED HERBARIUM SPECIMENS
 ###
-### 374 pleasing specimens from NY Emu (by Leanna McMillin), manually filtered down to 334
+### 374 pleasing specimens from NY Emu (by Leanna McMillin), manually filtered down to 331
 
 ### 334 ordinary specimens from NY (maximum of 1 per genus)
-unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID; 2,727,071 records
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 2,727,071 records
 sort -t$'\t' -k 1b,1 s > t
-bloom -gz create -p 0.0000001 -n $(wc -l t | awk '{print $1}') NY-specimens.bloom.gz
-awk -F'\t' '{print $1}' t | bloom -gz insert NY-specimens.bloom.gz
 unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check NY-specimens.bloom.gz > m ### gbifID, identifier; 2,786,110 records
 sort -t$'\t' -k 1b,1 m > n
 join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for 1000 NY average specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="NY")&&($3=="NY")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > a ### 2,786,106 records
-sort -n a | python3 -c '
-import sys
-OCCURRENCEID = 1
-INSTITUTIONCODE = 2
-COLLECTIONCODE = 3
-SCIENTIFICNAME = 4
-URL = 5
-MAX = 1000
-count = 0
-genera = {} ### genus => True
-for line in sys.stdin:
-   columns = line.rstrip().split("\t")
-   name = columns[SCIENTIFICNAME].split(" ")
-   if count < MAX and name[0] not in genera:
-      genera[name[0]] = True
-      print(f"{columns[OCCURRENCEID]}\t{columns[INSTITUTIONCODE]}\t{columns[COLLECTIONCODE]}\t{columns[SCIENTIFICNAME]}\t{columns[URL]}")
-      count += 1
-' > b
+sort -n a | python3 -c "$SELECT1000" > b
 echo -n '' > x
 cat b | while read -r line; do
    echo -n "$line" | xxh64sum | awk '{print $1}' >> x
@@ -238,24 +417,83 @@ mkdir -p original-images/NY-ordinary
 cd original-images/NY-ordinary
 tail -n +2 ../../NY-ordinary-aesthetic.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
-### manually screened 334 images in default sort order
-
-#
-# 
-#
+### => manually screened 331 images in default sort order
 
 
 
-# NIMA:
-# https://ieeexplore.ieee.org/stamp/stamp.jsp?arnumber=8352823
-# https://ai.googleblog.com/2017/12/introducing-nima-neural-image-assessment.html
-# https://github.com/titu1994/neural-image-assessment
-# https://github.com/idealo/image-quality-assessment
+
+# MUSIQ
+
+mkdir musiq
+cd musiq
+TF='2.10.0'
+echo 'FROM tensorflow/tensorflow:'$TF > Dockerfile
+echo 'RUN python3 -m pip install --upgrade pip && python3 -m pip install --upgrade setuptools && python3 -m pip install tensorflow-addons && python3 -m pip install "absl-py>=0.12.0" && python3 -m pip install "chex>=0.0.7" && python3 -m pip install "clu>=0.0.3" && python3 -m pip install "einops>=0.3.0" && python3 -m pip install "flax==0.3.3" && python3 -m pip install "ml-collections==0.1.0" && python3 -m pip install "numpy>=1.19.5" && python3 -m pip install "pandas>=1.1.0" && python3 -m pip install "jax>=0.1.55" && python3 -m pip install "jaxlib>=0.1.37"' >> Dockerfile
+docker build -t 'tensorflow:'$TF'-cpu-musiq' .
+mkdir -p musiq/model
+cd musiq/model
+wget https://storage.googleapis.com/gresearch/musiq/ava_ckpt.npz
+wget https://raw.githubusercontent.com/google-research/google-research/master/musiq/model/multiscale_transformer.py
+wget https://raw.githubusercontent.com/google-research/google-research/master/musiq/model/multiscale_transformer_utils.py
+wget https://raw.githubusercontent.com/google-research/google-research/master/musiq/model/preprocessing.py
+wget https://raw.githubusercontent.com/google-research/google-research/master/musiq/model/resnet.py
+cd ../
+wget https://raw.githubusercontent.com/google-research/google-research/master/musiq/run_predict_image.py
+cd ../
+docker run --runtime=nvidia -u $(id -u):$(id -g) --rm -it -v "${PWD}:/tmp" -w /tmp 'tensorflow:'$TF'-cpu-musiq'
+python3 -m musiq.run_predict_image --ckpt_path=musiq/model/musiq_ava_ckpt.npz --image_path=$(pwd)/grace.jpg # fails
+exit
+cd ../
+
+
+
+
+
+
+
+# python3 -c '
+# from tf2cv.model_provider import get_model as tf2cv_get_model
+# import tensorflow as tf
+# net = tf2cv_get_model("shufflenet_g1_wd4", pretrained = True, data_format = "channels_last")
+# x = tf.random.normal((1, 224, 224, 3))
+# y_net = net(x)
+# print(y_net)
+# '
+python3 -c '
+from tf2cv.model_provider import get_model as tf2cv_get_model
+import numpy as np
+import PIL.Image as Image
+import tensorflow as tf
+
+
+PIXELS = (224, 224)
+
+net = tf2cv_get_model("shufflenet_g1_wd4", pretrained = True, data_format = "channels_last")
+
+grace_hopper = tf.keras.utils.get_file("image.jpg","https://storage.googleapis.com/download.tensorflow.org/example_images/grace_hopper.jpg")
+grace_hopper = Image.open(grace_hopper).resize(PIXELS)
+grace_hopper = np.array(grace_hopper)/255.0
+
+y_net = net(grace_hopper[np.newaxis, ...])
+print(tf.nn.softmax(y_net))
+
+# labels_path = tf.keras.utils.get_file("ImageNetLabels.txt","https://storage.googleapis.com/download.tensorflow.org/data/ImageNetLabels.txt")
+# imagenet_labels = np.array(open(labels_path).read().splitlines())
+
+# predicted_class = tf.math.argmax(y_net[0], axis = -1)
+# print(imagenet_labels[predicted_class])
+
+'
+
+
 # TRes:
 # https://arxiv.org/pdf/2108.06858.pdf
 # https://github.com/isalirezag/TReS
 # SqueezeNet https://pypi.org/project/tf2cv/ + https://openaccess.thecvf.com/content_cvpr_2018/papers/Zhang_The_Unreasonable_Effectiveness_CVPR_2018_paper.pdf
 
+# AIHIQnet https://github.com/junyongyou/aihiqnetvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+# MANIQA https://github.com/IIGROUP/MANIQA
 
 #
 # NIMA == does not work
@@ -290,45 +528,13 @@ R CMD BATCH aesthetic.r
 
 
 
-###
-### INVISIBLE MOUNTED SPECIMENS
-###
-
-# NY from ordinary-aesthetic download
-
-
-
-###
-### CARPOLOGICAL
-###
 
 
 
 
 
 
-###
-### ORDINARY MOUNTED SPECIMENS
-###
 
-# F
-# GH
-# K
-# MO
-# NHMD
-# NY
-
-
-
-###
-### ORDINARY MOUNTED SPECIMENS CLOSEUP
-###
-
-
-
-###
-### LABELS
-###
 
 
 

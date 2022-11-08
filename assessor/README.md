@@ -36,6 +36,8 @@ manually separated from MO herbarium2022 download
 
 from NY Emu a maximum of 15 images per genus
 
+no landscapes, people
+
 <!-- sample images -->
 
 
