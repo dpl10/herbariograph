@@ -1,49 +1,29 @@
 # DATASET
 
-The dataset was constructed from a variety of public data sources detailed below. Each image was manually reviewed and a total of 8,192 images per class were randomly selected: 7,168 train, 512 test, and 512 validate. The file XXX details the origin of each image.
+The dataset was constructed from a variety of public data sources detailed below. Each image was manually reviewed and a total of 9,216 images per class were randomly selected: 8,192 train, 512 test, and 512 validate. Vascular plant specimen data were downloaded from [GBIF](https://www.gbif.org/) in bulk and then reprocessed, as described below, to extract image URLs for collections at the [Field Museum (F)](https://collections-botany.fieldmuseum.org/), the [Missouri Botanical Garden (MO)](https://www.missouribotanicalgarden.org/plant-science/plant-science/resources/herbarium), the [Natural History Museum of Denmark (C)](https://samlinger.snm.ku.dk/en/dry-and-wet-collections/botany/), the [New York Botanical Garden (NY)](http://sweetgum.nybg.org/science/vh/) and the [Royal Botanic Gardens Kew (K)](https://www.kew.org/science/collections-and-resources/collections/herbarium). The file XXX <!-- FILL IN  --> details the origin of each image. 
 
 <!-- table of classes and image sources -->
 
 
-## Aesthetically pleasing mounted herbarium specimen images
-
-<!-- sample images -->
-
-
 ## Biocultural specimen images
 
-ECON [Harvard University Economic Herbarium of Oakes Ames](https://huh.harvard.edu/pages/economic-herbarium-oakes-ames-econ) 
-
-F [Field Museum Timothy C. Plowman Economic Botany Collection](https://www.fieldmuseum.org/node/5211)
-
-K [Royal Botanic Gardens Kew Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769)
-
-NHMD [Natural History Museum of Denmark Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379)
+Biocultural specimen images were sourced from a selection of specialty collections: the [Field Museum Timothy C. Plowman Economic Botany Collection](https://www.fieldmuseum.org/node/5211), the [Natural History Museum of Denmark Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379), and the [Royal Botanic Gardens Kew Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769). Downloaded images were further processed to remove non–vascular plant images, mounted specimens, and specimens that had not been significantly altered from their natural state.
 
 <!-- MO -->
 
 <!-- sample images -->
 
 
-## Carpological specimen images
-
-<!-- sample images -->
-
-
 ## Illustrations
 
-Vascular plant illustrations were sourced from the [Biodiversity Heritage Library (BHL)](https://www.biodiversitylibrary.org/). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Downloaded images were further processed to remove non–vascular plant images as well as to segregate images into color versus monochrome/grayscale classes. 
+Vascular plant illustrations were sourced from the [Biodiversity Heritage Library (BHL)](https://www.biodiversitylibrary.org/). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Downloaded images were further processed to remove non–vascular plant images as well as to segregate plant illustrations into color versus monochrome/grayscale classes. 
 <!-- First run: no maps, portraits, landscapes, and altered or natural photographs, fungi, physiology diagrams; Second: Code Color vs. Gray; Third: 65.4% ok in color; additional cleaning (maps + yellowish and sepia appearance) -->
 
-<!-- sample images -->
-
-
-## Invisible mounted specimen images
+### Color illustrations
 
 <!-- sample images -->
 
-
-## Label images
+### Grayscale illustrations
 
 <!-- sample images -->
 
@@ -59,12 +39,39 @@ from NY Emu a maximum of 15 images per genus
 <!-- sample images -->
 
 
-## Ordinary mounted herbarium specimen images
+## Mounted specimen images
+
+
+### Aesthetically pleasing mounted herbarium specimen images
+
+<!-- sample images -->
+
+### Ordinary mounted herbarium specimen images
 
 <!-- sample images -->
 
 
-## Ordinary mounted herbarium specimen closeup images
+## Unmounted and invisible specimen images
+
+Images of unmounted specimens and images lacking a visible specimen were selected from the bulk GBIF download by searching for records with multiple images per occurrenceID. One collection (occurrenceID) per genus per institution was randomly selected for download and images were sorted into carpological, invisible, label only, mounted specimen closeup images, and xylogical specimen images.
+
+### Carpological specimen images
+
+<!-- sample images -->
+
+### Invisible mounted specimen images
+
+<!-- sample images -->
+
+### Label only images
+
+<!-- sample images -->
+
+### Mounted herbarium specimen closeup images
+
+<!-- sample images -->
+
+### Xylogical specimen images
 
 <!-- sample images -->
 
@@ -73,3 +80,7 @@ from NY Emu a maximum of 15 images per genus
 # INFORMER MODEL ARCHITECTURE
 
 The Informer architecture is a based on the Compact Convolutional Transformer (CCT; [Hassan et al 2021](https://arxiv.org/abs/2104.05704)) modified to include an image tokenizer and token reducer inspired by Inception ([Szegedy et al. 2016](https://arxiv.org/abs/1602.07261v2)) and SqueezeNet ([Iandola et al. 2016](https://arxiv.org/abs/1602.07360)). For greater computational efficiency, a mixture of conventional transformers and poolformers ([Yu et al. 2022](https://arxiv.org/abs/2111.11418)) have been employed. Thus, the name *Informer* is a combination of *In*ception and Trans*former*.
+
+
+
+# TRAINING
