@@ -1,23 +1,26 @@
 # DATASET
 
 The dataset was constructed from a variety of public data sources detailed below. Each image was manually reviewed and a total of 10,240 images per class were randomly selected: 8,192 train, 1,024 test, and 1,024 validate. Vascular plant specimen data were downloaded from [GBIF](https://www.gbif.org/) in bulk and then reprocessed, as described below, to extract image URLs for collections at 
-[Field Museum (F)](https://collections-botany.fieldmuseum.org/), 
-[Harvard University Herbaria (GH)](https://huh.harvard.edu/),
-[Meise Botanic Garden Herbarium (BR)](https://www.botanicalcollections.be), 
-[Missouri Botanical Garden (MO)](https://www.missouribotanicalgarden.org/plant-science/plant-science/resources/herbarium), 
-[Muséum National d'Histoire Naturelle (P)](https://science.mnhn.fr/institution/mnhn/collection/p/item/search/form),
-[Natural History Museum of Denmark (C)](https://samlinger.snm.ku.dk/en/dry-and-wet-collections/botany/),
-[Naturalis Biodiversity Center (L; no GBIF records were available, so Darwin Core Archives were downloaded directly from the Naturalis API)](https://www.naturalis.nl/collectie), 
-[New York Botanical Garden (NY)](http://sweetgum.nybg.org/science/vh/), 
-[Royal Botanic Gardens Kew (K)](https://www.kew.org/science/collections-and-resources/collections/herbarium), 
-[Smithsonian Institution (US)](https://naturalhistory.si.edu/research/botany),
-[Université de Montpellier (MPU)](https://collections.umontpellier.fr/collections/botanique/herbier-mpu),
-and [University of Michigan (MICH)](https://lsa.umich.edu/herbarium/). 
-The institutional origin of each image is detailed in the TensorFlow record files. Images are licensed by their originating institutions under some form of Creative Commons license (CC0, CC-BY, and CC-BY-NC).
+[Field Museum](https://collections-botany.fieldmuseum.org/) (F), 
+[Harvard University Herbaria](https://huh.harvard.edu/) (GH),
+[Meise Botanic Garden Herbarium](https://www.botanicalcollections.be) (BR), 
+[Missouri Botanical Garden](https://www.missouribotanicalgarden.org/plant-science/plant-science/resources/herbarium) (MO), 
+[Muséum National d'Histoire Naturelle](https://science.mnhn.fr/institution/mnhn/collection/p/item/search/form) (P),
+[National Herbarium of New South Wales](https://www.rbgsyd.nsw.gov.au/science/national-herbarium-of-new-south-wales) (NSW),
+[Natural History Museum of Denmark](https://samlinger.snm.ku.dk/en/dry-and-wet-collections/botany/) (C),
+[Naturalis Biodiversity Center](https://www.naturalis.nl/collectie) (L; no GBIF records were available, so Darwin Core Archives were downloaded directly from the Naturalis API), 
+[New York Botanical Garden](http://sweetgum.nybg.org/science/vh/) (NY), 
+[Real Jardín Botánico](https://rjb.csic.es/rjb-colecciones/herbario-ma/) (MA),
+[Royal Botanic Garden Edinburgh](https://www.rbge.org.uk/science-and-conservation/herbarium/) (E),
+[Royal Botanic Gardens Kew](https://www.kew.org/science/collections-and-resources/collections/herbarium) (K), 
+[Smithsonian Institution](https://naturalhistory.si.edu/research/botany) (US),
+[Université de Montpellier](https://collections.umontpellier.fr/collections/botanique/herbier-mpu) (MPU),
+[University of Michigan](https://lsa.umich.edu/herbarium/) (MICH),
+and [University of Oslo](https://www.nhm.uio.no/samlinger/botanikk/index.html) (O). 
+The institutional origin of each image is detailed in the TensorFlow record files. Images are licensed by their originating institutions under some form of Creative Commons license (CC0, CC-BY, CC-BY-NC, or CC-BY-SA).
 
 
 ## Animal specimen images
-
 
 <!-- sample images -->
 
@@ -25,22 +28,21 @@ The institutional origin of each image is detailed in the TensorFlow record file
 ## Biocultural specimen images
 
 Biocultural specimen images were sourced from a selection of specialty collections: 
-[Field Museum Timothy C. Plowman Economic Botany Collection (F)](https://www.fieldmuseum.org/node/5211), 
+[Field Museum Timothy C. Plowman Economic Botany Collection](https://www.fieldmuseum.org/node/5211) (F), 
 <!-- MO --> 
-[Natural History Museum of Denmark Biocultural Botany Collection (C)](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379), 
-and [Royal Botanic Gardens Kew Economic Botany Collection (K)](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769). 
+[Natural History Museum of Denmark Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379) (C), 
+and [Royal Botanic Gardens Kew Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769) (K). 
 In addition, images were also sourced from a selection of open access cultural collections: 
-[Metropolitan Museum of Art (Met)](https://github.com/metmuseum/openaccess) 
-and [Cooper Hewitt (Smithsonian) National Design Museum (CHNDM)](https://registry.opendata.aws/smithsonian-open-access/). 
+[Metropolitan Museum of Art](https://github.com/metmuseum/openaccess) (Met) 
+and [Cooper Hewitt (Smithsonian) National Design Museum](https://registry.opendata.aws/smithsonian-open-access/) (CHNDM). 
 Downloaded images were manually screened to remove non–vascular plant images, mounted specimens, and specimens that had not been significantly altered from their natural state.
-
 
 <!-- sample images -->
 
 
 ## Illustrations
 
-Vascular plant illustrations were sourced from [Biodiversity Heritage Library (BHL)](https://www.biodiversitylibrary.org/). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Downloaded images were manually screened to remove non–vascular plant images as well as to segregate plant illustrations into color versus monochrome/grayscale classes. 
+Vascular plant illustrations were mainly sourced from [Biodiversity Heritage Library](https://www.biodiversitylibrary.org/) (BHL). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Additional images were manually separated from downloads that targeted other classes. Downloaded images were manually screened to remove non–vascular plant images as well as to segregate plant illustrations into color versus monochrome/grayscale classes. 
 <!-- First run: no maps, portraits, landscapes, and altered or natural photographs, fungi, physiology diagrams; Second: Code Color vs. Gray; Third: 65.4% ok in color; additional cleaning (maps + yellowish and sepia appearance) -->
 
 ### Color illustrations
@@ -60,7 +62,7 @@ manually separated from MO herbarium2022 download
 
 from NY Emu a maximum of 15 images per genus
 
-Downloaded images were manually screened to remove landscapes and people.
+Additional images were manually separated from downloads that targeted other classes. Downloaded images were manually screened to remove landscapes and people.
 
 <!-- sample images -->
 
