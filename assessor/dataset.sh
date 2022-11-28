@@ -70,7 +70,7 @@ for line in sys.stdin:
 ### DATASET CREATION
 ###
 
-HERBARIA=( 'BR' 'C' 'F' 'GH' 'K' 'L' 'MICH' 'MO' 'MPU' 'NY' 'P' 'US' )
+HERBARIA=( 'BR' 'C' 'E' 'F' 'GH' 'K' 'L' 'MA' 'MICH' 'MO' 'MPU' 'NSW' 'NY' 'O' 'P' 'US' ) ### 16; additional options (number of specimen records): V, LY, TEX, NCU, RSA, COLO, USF, TRH 
 for HERBARIUM in "${HERBARIA[@]}"; do
    mkdir -p 'raw-dataset/aesthetically-pleasing-mounted-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/animal-specimens/'$HERBARIUM
@@ -79,19 +79,22 @@ for HERBARIUM in "${HERBARIA[@]}"; do
    mkdir -p 'raw-dataset/illustrations-color/'$HERBARIUM
    mkdir -p 'raw-dataset/illustrations-gray/'$HERBARIUM
    mkdir -p 'raw-dataset/invisible-mounted-specimens/'$HERBARIUM
-   mkdir -p 'raw-dataset/labels-only/'$HERBARIUM
    mkdir -p 'raw-dataset/live-plants/'$HERBARIUM
    mkdir -p 'raw-dataset/ordinary-mounted-specimens-closeup/'$HERBARIUM
    mkdir -p 'raw-dataset/ordinary-mounted-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/spirit-collections/'$HERBARIUM
+   mkdir -p 'raw-dataset/text-only/'$HERBARIUM
    mkdir -p 'raw-dataset/xylogical-specimens/'$HERBARIUM
 #
 # 13 classes (11 if bulk unmounted only)
-# + seedling with help of BR?
+# + seedling with help of BR + L (phaseOrStage)?
+# + fruit, vegetative, flower with help of BR + L (phaseOrStage)
 # + slides?
 # + SEM?
 # + other (natural vs anthropogenic)?
 #  
+# 2^13 = 8,192
+#
 done
 mkdir -p raw-dataset/biocultural-specimens/CHNDM
 mkdir -p raw-dataset/biocultural-specimens/Met
@@ -109,7 +112,7 @@ find raw-dataset -type d | xargs -I {} -P 1 mkdir -p 'final-dataset/{}'
 ### manually removed non-illustrations 
 ### also manually separated from other institutional downloads (see below)
 
-### LDA from 20 arbitrarily selected images (should probably have used more than 20)
+### LDA from 20 arbitrarily selected images (should probably have used more than 20 images and used SVM in place of LDA)
 mkdir test-out-color
 mkdir test-out-gray
 find test-color/ -type f -name '*.jpg' | awk -F/ '{print $2}' | xargs -I {} -P 1 convert test-color/{} -separate test-out-color/{}
@@ -157,6 +160,33 @@ mkdir original-images/BHL/illustrations/color
 mkdir original-images/BHL/illustrations/gray
 tail +2 bhl-fuzz.tsv | awk -F'\t' '{if(-10.27471+(-77.86728*$3)+(320.70587*$5)+(-49.63974*$7) > 2){print "mv original-images/BHL/illustrations/" $1,"original-images/BHL/illustrations/color/"}else{print "mv original-images/BHL/illustrations/" $1,"original-images/BHL/illustrations/gray/"}}' | bash
 
+### BR
+### color: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22DC%22,%22count%22:175%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123031956.zip herbarium_export_20221123031956.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' > x
+echo -n '' > y
+sort -u x | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> y
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > BR-illustrations-color.tsv
+sort -u x | paste - y >> BR-illustrations-color.tsv ### 178 records
+mkdir -p original-images/BR-color
+cd original-images/BR-color
+tail -n +2 ../../BR-illustrations-color.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### grayscale: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22DR%22,%22count%22:3918%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123032343.zip herbarium_export_20221123032343.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' > x
+echo -n '' > y
+sort -u x | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> y
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > BR-illustrations-gray.tsv
+sort -u x | paste - y >> BR-illustrations-gray.tsv ### 3,921 records
+mkdir -p original-images/BR-gray
+cd original-images/BR-gray
+tail -n +2 ../../BR-illustrations-gray.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
 
 
 ###
@@ -171,10 +201,29 @@ tail +2 bhl-fuzz.tsv | awk -F'\t' '{if(-10.27471+(-77.86728*$3)+(320.70587*$5)+(
 # make table of ny live images 
 #
 
+### BR
+### color: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22PC%22,%22count%22:849%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123032913.zip herbarium_export_20221123032913.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' > x
 
+### grayscale: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:849%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22PB%22,%22count%22:742%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:849%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123033141.zip herbarium_export_20221123033141.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' >> x
+
+### other: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22P%22,%22count%22:62%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123033521.zip herbarium_export_20221123033521.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' >> x
+
+echo -n '' > y
+sort -u x | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> y
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > BR-live.tsv
+sort -u x | paste - y >> BR-live.tsv ### 1,659 records
+mkdir -p original-images/BR-live
+cd original-images/BR-live
+tail -n +2 ../../BR-live.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 ###
-### GBIF RECORDED SPECIMEN IMAGES
+### GBIF SPECIMEN IMAGES
 ###
 ### manual search of GBIF 24 October 2022
 # Download format: DWCA
@@ -202,33 +251,35 @@ unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length(
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') C-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert C-specimens.bloom.gz
 
+### E
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="E")&&($61=="E")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 332,983 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') E-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert E-specimens.bloom.gz
+
 ### F
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="F")&&($61=="Botany")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 635,879 records
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') F-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert F-specimens.bloom.gz
 
 ### GH 
-# unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="GH")&&($61=="GH")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName;  records
-# bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') GH-specimens.bloom.gz
-# awk -F'\t' '{print $1}' s | bloom -gz insert GH-specimens.bloom.gz
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="GH")&&($61=="GH")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 686,404 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') GH-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert GH-specimens.bloom.gz
 
 ### K
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="K")&&($61=="K")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 76,033 records
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') K-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert K-specimens.bloom.gz
 
-### L 
-#
-# not in GBIF... https://docs.biodiversitydata.nl/en/latest/introduction/
-#
-# unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="BY")&&($61=="BC")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName;  records
-# bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') L-specimens.bloom.gz
-# awk -F'\t' '{print $1}' s | bloom -gz insert L-specimens.bloom.gz
+### MA
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MA")&&($61=="MA")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 305,022 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MA-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert MA-specimens.bloom.gz
 
 ### MICH 
-# unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MICH")&&(($61=="Angiosperms")||($61=="Gymnosperms")||($61=="Pteridophytes"))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName;  records
-# bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MICH-specimens.bloom.gz
-# awk -F'\t' '{print $1}' s | bloom -gz insert MICH-specimens.bloom.gz
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MICH")&&(($61=="Angiosperms")||($61=="Gymnosperms")||($61=="Pteridophytes"))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 426,799 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MICH-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert MICH-specimens.bloom.gz
 
 ### MO
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MO")&&($61=="MO")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 476,015 records
@@ -236,24 +287,45 @@ bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MO-specimens.bloo
 awk -F'\t' '{print $1}' s | bloom -gz insert MO-specimens.bloom.gz
 
 ### MPU 
-# unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="UM")&&($61=="MPU")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName;  records
-# bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MPU-specimens.bloom.gz
-# awk -F'\t' '{print $1}' s | bloom -gz insert MPU-specimens.bloom.gz
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="UM")&&($61=="MPU")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 829,857 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MPU-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert MPU-specimens.bloom.gz
+
+### NSW
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NSW")&&($61=="NSW")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 381,683 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') NSW-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert NSW-specimens.bloom.gz
 
 ### NY
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 2,727,071 records
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') NY-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert NY-specimens.bloom.gz
 
+### O
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="O")&&($61=="V")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 680,594 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') O-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert O-specimens.bloom.gz
+
 ### P 
-# unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MNHN")&&($61=="P")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName;  records
-# bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') P-specimens.bloom.gz
-# awk -F'\t' '{print $1}' s | bloom -gz insert P-specimens.bloom.gz
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MNHN")&&($61=="P")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 5,670,710 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') P-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert P-specimens.bloom.gz
 
 ### US
-# unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="US")&&($61=="US")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName;  records
-# bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') US-specimens.bloom.gz
-# awk -F'\t' '{print $1}' s | bloom -gz insert US-specimens.bloom.gz
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="US")&&($61=="US")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 3,563,533 records
+bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') US-specimens.bloom.gz
+awk -F'\t' '{print $1}' s | bloom -gz insert US-specimens.bloom.gz
+
+
+
+###
+### NON-GBIF SPECIMEN IMAGES
+###
+
+### L (2022 NOVEMBER 22)
+wget https://api.biodiversitydata.nl/v2/multimedia/download/?_querySpec=%7B%22conditions%22%3A%5B%7B%22field%22%3A%22identifications.defaultClassification.genus%22%2C%22operator%22%3A%22EQUALS%22%2C%22value%22%3A%22Sphagnum%22%7D%2C%7B%22field%22%3A%22collectionType%22%2C%22operator%22%3A%22EQUALS%22%2C%22value%22%3A%22Botany%22%7D%2C%7B%22field%22%3A%22license%22%2C%22operator%22%3A%22STARTS_WITH%22%2C%22value%22%3A%22CC%22%7D%5D%7D ### 4,597,324 records in count query, but 4,592,653 in download; https://api.biodiversitydata.nl/scratchpad/; {"conditions":[{"field":"collectionType","operator":"EQUALS","value":"Botany"},{"field":"license","operator":"STARTS_WITH","value":"CC"}]}
+xz -9 download.ndjson
+xz -cdk download.ndjson.xz | jq -r '[.sourceSystemId, .identifications[0].scientificName.fullScientificName, .serviceAccessPoints[0].accessUri, .identifications[0].defaultClassification.className] | @tsv' | grep -v -e '^113251_668217503' -e '^balgooy_0328733528' | perl -pe 's/^AMD\.{0,1}/AMD\tAMD./;s/^L\.{0,1}/L\tL./;s/^U\.{0,1}/U\tU./;s/^WAG\.{0,1}/WAG\tWAG./i' | awk -F'\t' -v seed=$(echo -n 'random number seed for L specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($5=="Lycopsida")||($5=="Magnoliopsidae")||($5=="Pinopsida")||($5=="Pteropsida")){print int(rand()*10000000),$2,"L",$1,$3,$4}}' > L-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 4,409,328 records
 
 
 
@@ -280,8 +352,23 @@ echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh
 paste e x >> BR-multi-specimens.tsv ### 200,550 records
 mkdir -p original-images/BR-multi
 cd original-images/BR-multi
+tail -n +2 ../../BR-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
 ls *.jpg | perl -pe 's/\.jpg$//' > done
 tail -n +2 ../../BR-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### text: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22DE%22,%22count%22:155%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123034026.zip herbarium_export_20221123034026.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' > x
+echo -n '' > y
+sort -u x | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> y
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > BR-text.tsv
+sort -u x | paste - y >> BR-text.tsv ### 159 records
+mkdir -p original-images/BR-labels
+cd original-images/BR-labels
+tail -n +2 ../../BR-text.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
 ### C
@@ -302,8 +389,34 @@ echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh
 paste e x >> C-multi-specimens.tsv ### 311 records
 mkdir -p original-images/C-multi
 cd original-images/C-multi
+tail -n +2 ../../C-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
 ls *.jpg | perl -pe 's/\.jpg$//' > done
 tail -n +2 ../../C-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### E
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="E")&&($61=="E")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 332,983 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check E-specimens.bloom.gz > m ### gbifID, identifier; 673,106 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for E specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="E")&&($3=="E")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > E-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 673,098 records
+awk -F'\t' '{print $2}' E-specimens.tsv | sort | uniq -d > d ### 332,118 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') E-multi-specimens.bloom.gz
+cat d | bloom -gz insert E-multi-specimens.bloom.gz
+sort -n E-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check E-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 168,148 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > E-multi-specimens.tsv
+paste e x >> E-multi-specimens.tsv ### 168,148 records
+mkdir -p original-images/E-multi
+cd original-images/E-multi
+tail -n +2 ../../E-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../E-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
 ### F
@@ -315,19 +428,44 @@ join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | aw
 awk -F'\t' '{print $2}' F-specimens.tsv | sort | uniq -d > d ### 629,634 records
 bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') F-multi-specimens.bloom.gz
 cat d | bloom -gz insert F-multi-specimens.bloom.gz
-sort -n F-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check F-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 15,270 records
+sort -n F-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check F-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 206,889 records
 echo -n '' > x
 cat e | while read -r line; do
    echo -n "$line" | xxh64sum | awk '{print $1}' >> x
 done
 echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > F-multi-specimens.tsv
-paste e x >> F-multi-specimens.tsv ### 15,270 records
+paste e x >> F-multi-specimens.tsv ### 206,889 records
 mkdir -p original-images/F-multi
 cd original-images/F-multi
 tail -n +2 ../../F-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../F-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
 ### GH
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="GH")&&($61=="GH")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 686,404 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check GH-specimens.bloom.gz > m ### gbifID, identifier; 686,415 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for GH specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="GH")&&($3=="GH")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > GH-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 686,412 records
+awk -F'\t' '{print $2}' GH-specimens.tsv | sort | uniq -d > d ###  records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') GH-multi-specimens.bloom.gz
+cat d | bloom -gz insert GH-multi-specimens.bloom.gz
+sort -n GH-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check GH-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 2,345 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > GH-multi-specimens.tsv
+paste e x >> GH-multi-specimens.tsv ### 2,345 records
+mkdir -p original-images/GH-multi
+cd original-images/GH-multi
+tail -n +2 ../../GH-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../GH-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 ### K
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="K")&&($61=="K")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 76,033 records
@@ -338,22 +476,80 @@ join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | aw
 awk -F'\t' '{print $2}' K-specimens.tsv | sort | uniq -d > d ### 16 records
 bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') K-multi-specimens.bloom.gz
 cat d | bloom -gz insert K-multi-specimens.bloom.gz
-sort -n K-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check K-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 24 records
+sort -n K-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check K-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 34 records
 echo -n '' > x
 cat e | while read -r line; do
    echo -n "$line" | xxh64sum | awk '{print $1}' >> x
 done
 echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > K-multi-specimens.tsv
-paste e x >> K-multi-specimens.tsv ### 24 records, all blank images
+paste e x >> K-multi-specimens.tsv ### 34 records, all blank images
 mkdir -p original-images/K-multi
 cd original-images/K-multi
 tail -n +2 ../../K-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../K-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
 ### L 
+#
+# query parts or type of material
+# collectionType
+# https://api.biodiversitydata.nl/scratchpad/; {"conditions":[{"field":"collectionType","operator":"EQUALS","value":"Botany"},{"field":"license","operator":"STARTS_WITH","value":"CC"},{"field":"collectionType","operator":"EQUALS","value":"Bark samples"}]}
+# add L preparationType = microscopic slide {"field":"preparationType","operator":"MATCHES","value":"microscopic slide"}
+# add L preparationType = wet specimen | alcohol {"field":"preparationType","operator":"MATCHES","value":"wet specimen"}]} {"field":"preparationType","operator":"MATCHES","value":"alcohol"}
+
+### MA
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MA")&&($61=="MA")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 305,022 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check MA-specimens.bloom.gz > m ### gbifID, identifier; 310,948 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for MA specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="MA")&&($3=="MA")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > MA-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 310,944 records
+awk -F'\t' '{print $2}' MA-specimens.tsv | sort | uniq -d > d ### 5,829 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') MA-multi-specimens.bloom.gz
+cat d | bloom -gz insert MA-multi-specimens.bloom.gz
+sort -n MA-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check MA-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 8,114 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > MA-multi-specimens.tsv
+paste e x >> MA-multi-specimens.tsv ### 8,115 records
+mkdir -p original-images/MA-multi
+cd original-images/MA-multi
+tail -n +2 ../../MA-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../MA-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 ### MICH
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MICH")&&(($61=="Angiosperms")||($61=="Gymnosperms")||($61=="Pteridophytes"))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 426,799 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check MICH-specimens.bloom.gz > m ### gbifID, identifier; 437,103 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for MICH specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="MICH")&&(($3=="Angiosperms")||($3=="Gymnosperms")||($3=="Pteridophytes"))){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > MICH-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 437,100 records
+awk -F'\t' '{print $2}' MICH-specimens.tsv | sort | uniq -d > d ### 8,784 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') MICH-multi-specimens.bloom.gz
+cat d | bloom -gz insert MICH-multi-specimens.bloom.gz
+sort -n MICH-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check MICH-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 15,571 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > MICH-multi-specimens.tsv
+paste e x >> MICH-multi-specimens.tsv ### 15,571 records
+mkdir -p original-images/MICH-multi
+cd original-images/MICH-multi
+tail -n +2 ../../MICH-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../MICH-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
+#
+# fix ->
+#
 ### MO
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MO")&&($61=="MO")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 476,015 records
 sort -t$'\t' -k 1b,1 s > t
@@ -372,14 +568,64 @@ echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh
 paste e x >> MO-multi-specimens.tsv ### 23,009 records
 mkdir -p original-images/MO-multi
 cd original-images/MO-multi
-tail -n +2 ../../MO-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P 1 bash -c 'XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); save-page.sh "$URL" --browser firefox --load-wait-time 13 --save-wait-time 3 --destination "$XXH".jpg'
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../MO-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P 1 bash -c 'XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); save-page.sh "$URL" --browser firefox --load-wait-time 13 --save-wait-time 3 --destination "$XXH".jpg'
 # find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
 #
 # remove duplicates...
 #
 cd ../../
+#
+# <- fix
+#
 
 ### MPU
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="UM")&&($61=="MPU")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 829,857 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check MPU-specimens.bloom.gz > m ### gbifID, identifier; 833,522 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for MPU specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="UM")&&($3=="MPU")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > MPU-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 833,519 records
+awk -F'\t' '{print $2}' MPU-specimens.tsv | sort | uniq -d > d ### 2,744 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') MPU-multi-specimens.bloom.gz
+cat d | bloom -gz insert MPU-multi-specimens.bloom.gz
+sort -n MPU-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check MPU-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 6,003 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > MPU-multi-specimens.tsv
+paste e x >> MPU-multi-specimens.tsv ### 6,003 records
+mkdir -p original-images/MPU-multi
+cd original-images/MPU-multi
+tail -n +2 ../../MPU-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../MPU-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### NSW
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NSW")&&($61=="NSW")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 381,683 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check NSW-specimens.bloom.gz > m ### gbifID, identifier; 382,621 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for NSW specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="NSW")&&($3=="NSW")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > NSW-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 382,619 records
+awk -F'\t' '{print $2}' NSW-specimens.tsv | sort | uniq -d > d ### 784 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') NSW-multi-specimens.bloom.gz
+cat d | bloom -gz insert NSW-multi-specimens.bloom.gz
+sort -n NSW-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check NSW-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 1,081 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > NSW-multi-specimens.tsv
+paste e x >> NSW-multi-specimens.tsv ### 1,081 records
+mkdir -p original-images/NSW-multi
+cd original-images/NSW-multi
+tail -n +2 ../../NSW-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../NSW-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 ### NY
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 2,727,071 records
@@ -390,22 +636,92 @@ join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | aw
 awk -F'\t' '{print $2}' NY-specimens.tsv | sort | uniq -d > d ### 39,627 records
 bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') NY-multi-specimens.bloom.gz
 cat d | bloom -gz insert NY-multi-specimens.bloom.gz
-sort -n NY-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check NY-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 7,374 records
+sort -n NY-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check NY-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 52,999 records
 echo -n '' > x
 cat e | while read -r line; do
    echo -n "$line" | xxh64sum | awk '{print $1}' >> x
 done
 echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > NY-multi-specimens.tsv
-paste e x >> NY-multi-specimens.tsv ### 7,374 records; 254 (3.4%) carpological records
+paste e x >> NY-multi-specimens.tsv ### 52,999 [initial: 7,374 records; 254 (3.4%) carpological records]
 mkdir -p original-images/NY-multi
 cd original-images/NY-multi
 tail -n +2 ../../NY-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../NY-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### O
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="O")&&($61=="V")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 680,594 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check O-specimens.bloom.gz > m ### gbifID, identifier; 715,835 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for O specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="O")&&($3=="V")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > O-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 715,831 records
+awk -F'\t' '{print $2}' O-specimens.tsv | sort | uniq -d > d ### 31,322 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') O-multi-specimens.bloom.gz
+cat d | bloom -gz insert O-multi-specimens.bloom.gz
+sort -n O-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check O-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 22,494 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > O-multi-specimens.tsv
+paste e x >> O-multi-specimens.tsv ### 22,494 records
+mkdir -p original-images/O-multi
+cd original-images/O-multi
+tail -n +2 ../../O-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -O $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../O-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
 ### P
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MNHN")&&($61=="P")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 5,670,710 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check P-specimens.bloom.gz > m ### gbifID, identifier; 5,753,607 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for P specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="MNHN")&&($3=="P")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > P-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 5,753,603 records
+awk -F'\t' '{print $2}' P-specimens.tsv | sort | uniq -d > d ### 53,337 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') P-multi-specimens.bloom.gz
+cat d | bloom -gz insert P-multi-specimens.bloom.gz
+sort -n P-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check P-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 96,365 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > P-multi-specimens.tsv
+paste e x >> P-multi-specimens.tsv ### 96,365 records
+mkdir -p original-images/P-multi
+cd original-images/P-multi
+tail -n +2 ../../P-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../P-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 ### US
-
+unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="US")&&($61=="US")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 3,563,533 records
+sort -t$'\t' -k 1b,1 s > t
+unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check US-specimens.bloom.gz > m ### gbifID, identifier; 3,833,478 records
+sort -t$'\t' -k 1b,1 m > n
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for US specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="US")&&($3=="US")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > US-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 3,833,475 records
+awk -F'\t' '{print $2}' US-specimens.tsv | sort | uniq -d > d ### 245,977 records
+bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') US-multi-specimens.bloom.gz
+cat d | bloom -gz insert US-multi-specimens.bloom.gz
+sort -n US-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check US-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 159,124 records
+echo -n '' > x
+cat e | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > US-multi-specimens.tsv
+paste e x >> US-multi-specimens.tsv ### 159,124 records
+mkdir -p original-images/US-multi
+cd original-images/US-multi
+tail -n +2 ../../US-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+ls *.jpg | perl -pe 's/\.jpg$//' > done
+tail -n +2 ../../US-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 
 
@@ -518,24 +834,20 @@ cat x | while read -r line; do
 done
 echo -e 'Object Number\tObject Name\tClassification\tLink Resource\txxh64' > Met.tsv 
 paste x y >> Met.tsv ### 3,019 records
-
 mkdir Met
 cd Met
-#
-# redo
-#
 tail -n +2 ../Met.tsv | awk -F'\t' '{print $5$4}' | xargs -I {} -P 1 bash -c 'XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); save-page.sh "$URL" --browser google-chrome --load-wait-time 13 --save-wait-time 13 --destination Met-"$XXH"'
-# tail -n +2 ../Met.tsv | awk -F'\t' '{print $5$4}' | xargs -I {} -P 1 bash -c 'XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); save-page.sh "$URL" --browser firefox --load-wait-time 13 --save-wait-time 3 --destination Met-"$XXH"'
+tail -n +2 ../Met.tsv | awk -F'\t' '{print $5$4}' | xargs -I {} -P 1 bash -c 'XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); save-page.sh "$URL" --browser firefox --load-wait-time 13 --save-wait-time 3 --destination Met-"$XXH"' ### produces different results... wtf?
 cd ../
 tail -n +2 Met.tsv | awk -F'\t' 'BEGIN{OFS="\t"}{print $5,$1,$2,$3,$4}' | sort -t$'\t' -k 1b,1 > o
-find Met/ -type f -name 'Met-*' | xargs grep -Po '(?<=href=")[^"]*' | grep '.jpg$' | sort -u | perl -pe 's*^Met/Met-**;s/:/\t/' | awk -F'\t' 'BEGIN{OFS="\t"}{print $1,$2}' | sort -t$'\t' -k 1b,1 > m
+find Met/ -type f -name 'Met-*' | xargs grep -Po '(?<=href=")[^"]*' | grep '.jpg$' | sort -u | perl -pe 's*^Met/Met-**;s/:/\t/;s/\.html\t/\t/' | awk -F'\t' 'BEGIN{OFS="\t"}{print $1,$2}' | sort -u-t$'\t' -k 1b,1 > m ### 16,845 records
 echo -n '' > x
-join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY o m | cut -d$'\t' -f2- | grep -v EMPTY | while read -r line; do
+join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY o m | cut -d$'\t' -f2- | grep -v EMPTY | sort -u > y ### 12,789 records
+cat y | while read -r line; do
    echo -n "$line" | xxh64sum | awk '{print $1}' >> x
 done
 echo -e 'Object Number\tObject Name\tClassification\trecord url\timage url\txxh64' > Met-objects.tsv
-join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY o m | cut -d$'\t' -f2- | grep -v EMPTY | paste - x >> Met-objects.tsv ### 8,245 records
-
+paste y x >> Met-objects.tsv ### 12,789 records
 mkdir -p original-images/Met
 cd original-images/Met
 tail -n +2 ../../Met-objects.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
@@ -641,9 +953,12 @@ docker run -u $(id -u):$(id -g) -m 32g --rm -it -v "${PWD}:/tmp" -v "$HOME/Docum
 
 
 #
+# compress *-specimens.tsv
 # remove duplicates
+#   color illistration (after BR added)
+#   gray illistration (after BR added)
 # remove anything with less than 1024 on shortest side?
-# pretrain on imagenet (without plants) for out-of-distribution detection?
+# pretrain on imagenet (without plants etc) for out-of-distribution detection? https://arxiv.org/pdf/2107.08976.pdf
 #
 
 #

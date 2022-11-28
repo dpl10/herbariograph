@@ -91,15 +91,15 @@ Images of unmounted specimens and images lacking a visible specimen were selecte
 
 <!-- sample images -->
 
-### Label only images
-
-<!-- sample images -->
-
 ### Mounted herbarium specimen closeup images
 
 <!-- sample images -->
 
 ### Spirit collection images
+
+<!-- sample images -->
+
+### Text only images
 
 <!-- sample images -->
 
