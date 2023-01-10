@@ -1,6 +1,68 @@
 # DATASET
 
-The dataset was constructed from a variety of public data sources detailed below. Each image was manually reviewed and a total of 10,240 images per class were randomly selected: 8,192 train, 1,024 test, and 1,024 validate. Vascular plant specimen data were downloaded from [GBIF](https://www.gbif.org/) in bulk and then reprocessed, as described below, to extract image URLs for collections at 
+The dataset was constructed from a variety of public data sources detailed below. Each image was manually reviewed and a total of 10,240 images per class were randomly selected: 8,192 train, 1,024 test, and 1,024 validate. Images are licensed by their originating institutions under some form of Creative Commons license (CC0, CC-BY, CC-BY-NC, or CC-BY-SA). The institutional origin of each image is detailed in the TensorFlow record files.
+
+
+## Animal specimen images
+
+Animal specimen data were downloaded from [GBIF](https://www.gbif.org/) in bulk and then reprocessed to extract image URLs for animal specimens belonging to genera that are also vascular plant genera. A random sample of collections at 
+<!-- places -->
+were downloaded.
+
+<!-- sample images -->
+
+
+## Biocultural specimen images
+
+Biocultural specimen images were sourced from a selection of specialty collections: 
+[Field Museum Timothy C. Plowman Economic Botany Collection](https://www.fieldmuseum.org/node/5211) (F),
+[Natural History Museum of Denmark Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379) (C), 
+and [Royal Botanic Gardens Kew Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769) (K). 
+In addition, images were also sourced from a selection of open access cultural collections at the 
+[Metropolitan Museum of Art](https://github.com/metmuseum/openaccess) (Met) 
+and [Cooper Hewitt (Smithsonian) National Design Museum](https://registry.opendata.aws/smithsonian-open-access/) (CHNDM). 
+Additional images were manually separated from downloads that targeted other classes. 
+Downloaded images were manually screened to remove non–vascular plant images, pressed specimens, and specimens that had not been significantly altered from their natural state.
+
+<!-- sample images -->
+
+
+## Vascular plant illustrations
+
+Vascular plant illustrations were mainly sourced from [Biodiversity Heritage Library](https://www.biodiversitylibrary.org/) (BHL). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Additional images were manually separated from downloads that targeted other classes. Downloaded images were manually screened to remove non–vascular plant images as well as to segregate plant illustrations into color versus monochrome/grayscale classes. 
+
+### Color illustrations
+
+<!-- sample images -->
+
+### Grayscale illustrations
+
+<!-- sample images -->
+
+
+## Live vascular plant images
+
+Images were manually separated from downloads that targeted other classes. Downloaded images were screened to remove landscapes and identifiable people.
+
+<!-- sample images -->
+
+
+## Micrograph images
+
+Images were manually separated from downloads that targeted other classes.
+
+<!-- sample images -->
+
+## Microscope slides 
+
+
+
+<!-- sample images -->
+
+
+## Vascular plant specimen images
+
+Vascular plant specimen data were downloaded from [GBIF](https://www.gbif.org/) in bulk and then reprocessed, as described below, to extract image URLs for collections at 
 [Field Museum](https://collections-botany.fieldmuseum.org/) (F), 
 [Harvard University Herbaria](https://huh.harvard.edu/) (GH),
 [Meise Botanic Garden Herbarium](https://www.botanicalcollections.be) (BR), 
@@ -16,94 +78,63 @@ The dataset was constructed from a variety of public data sources detailed below
 [Smithsonian Institution](https://naturalhistory.si.edu/research/botany) (US),
 [Université de Montpellier](https://collections.umontpellier.fr/collections/botanique/herbier-mpu) (MPU),
 [University of Michigan](https://lsa.umich.edu/herbarium/) (MICH),
-and [University of Oslo](https://www.nhm.uio.no/samlinger/botanikk/index.html) (O). 
-The institutional origin of each image is detailed in the TensorFlow record files. Images are licensed by their originating institutions under some form of Creative Commons license (CC0, CC-BY, CC-BY-NC, or CC-BY-SA).
+and [University of Oslo](https://www.nhm.uio.no/samlinger/botanikk/index.html) (O). A random subset of URLs were selected for for download and further sorting.
 
+### Aesthetically pleasing pressed and dried herbarium specimen images
 
-## Animal specimen images
-
-<!-- sample images -->
-
-
-## Biocultural specimen images
-
-Biocultural specimen images were sourced from a selection of specialty collections: 
-[Field Museum Timothy C. Plowman Economic Botany Collection](https://www.fieldmuseum.org/node/5211) (F), 
-<!-- MO --> 
-[Natural History Museum of Denmark Biocultural Botany Collection](https://www.gbif.org/dataset/acf5050c-3a41-4345-a660-652cb9462379) (C), 
-and [Royal Botanic Gardens Kew Economic Botany Collection](https://www.gbif.org/dataset/1d31211e-350e-492a-a597-34d24bbc1769) (K). 
-In addition, images were also sourced from a selection of open access cultural collections: 
-[Metropolitan Museum of Art](https://github.com/metmuseum/openaccess) (Met) 
-and [Cooper Hewitt (Smithsonian) National Design Museum](https://registry.opendata.aws/smithsonian-open-access/) (CHNDM). 
-Downloaded images were manually screened to remove non–vascular plant images, mounted specimens, and specimens that had not been significantly altered from their natural state.
+Aesthetically pleasing pressed and dried herbarium specimen images were manually separated from bulk downloads. Incomplete, partially obscured, and artifact–heavy specimen images were avoided.
 
 <!-- sample images -->
 
+### Mixed pressed and dried herbarium specimen images
 
-## Illustrations
-
-Vascular plant illustrations were mainly sourced from [Biodiversity Heritage Library](https://www.biodiversitylibrary.org/) (BHL). Collections of images were manually downloaded via a [curated collection of Flickr albums](https://www.flickr.com/photos/biodivlibrary/albums). Additional images were manually separated from downloads that targeted other classes. Downloaded images were manually screened to remove non–vascular plant images as well as to segregate plant illustrations into color versus monochrome/grayscale classes. 
-<!-- First run: no maps, portraits, landscapes, and altered or natural photographs, fungi, physiology diagrams; Second: Code Color vs. Gray; Third: 65.4% ok in color; additional cleaning (maps + yellowish and sepia appearance) -->
-
-### Color illustrations
+Images that include specimens from multiple distinct collection events or single events that gathered multiple distinct taxa. Mixed specimen images include clear visible evidence of being mixed (e.g. expert annotations, multiple non–duplicate collection labels). The biological specimens may, or may not, be visible in the images—mixed specimens are frequently fully occluded (e.g. in packets), but occluded class images purport to be unmixed. Mixed specimen images occasionally feature photographs of live plants, micrographs, specimen reproductions, or illustrations, but unlike these classes biological specimens are present: either visible or, presumably, included in a specimen container (e.g. packet). 
 
 <!-- sample images -->
 
-### Grayscale illustrations
+### Ordinary pressed and dried herbarium specimen images
 
 <!-- sample images -->
 
-
-## Live plant images
-
-NY + MO
-
-manually separated from MO herbarium2022 download
-
-from NY Emu a maximum of 15 images per genus
-
-Additional images were manually separated from downloads that targeted other classes. Downloaded images were manually screened to remove landscapes and people.
+### Pressed and dried herbarium specimen closeup images
 
 <!-- sample images -->
 
+### Pressed and dried fragmentary herbarium specimen images
 
-## Mounted specimen images
-
-
-### Aesthetically pleasing mounted herbarium specimen images
+This class includes images with small amounts of biological material and often includes mounted photographic reproductions or illustrations of additional aspects. Minute whole plants are not included in this class.
 
 <!-- sample images -->
 
-### Ordinary mounted herbarium specimen images
+### Pressed and dried specimen reproductions
+
+Specimen reproductions—primarily mounted photographic prints of mounted pressed and dried herbarium specimens—were manually separated from downloads that targeted other classes. In contrast to all other classes, all depicted biological material is the product of at least two photographic events.
 
 <!-- sample images -->
 
+### Occluded specimen images
 
-## Unmounted and invisible specimen images
-
-Images of unmounted specimens and images lacking a visible specimen were selected from the bulk GBIF download by searching for records with multiple images per occurrenceID. One collection (occurrenceID) per genus per institution was randomly selected for download and images were manually sorted into carpological, invisible, label only, mounted specimen closeup images, spirit collections, and xylogical specimen images.
-
-### Carpological specimen images
+This class includes images of opaque specimen containers without visible biological specimens (e.g. boxes, packets, folders, etc.). Occluded specimen images often feature large amounts of text (e.g. specimen labels), but unlike the text–focused class which includes text in a number of settings, the full extent of the specimen container is visible in occluded specimen images and there are no visible biological specimens which may, or may not, be present in text–focused images. Occluded specimen images often feature photographs of live plants, micrographs, specimen reproductions, or illustrations, but unlike these classes a specimen container is clearly visible (e.g. packet) in the occluded specimen images. Occluded specimen images also differ from mixed specimen images: although mixed specimen images may also be entirely occluded, they contain clear evidence of multiple collections and/or taxa (e.g. visible expert annotations) whereas the occluded class images purport to be unmixed.  
 
 <!-- sample images -->
 
-### Invisible mounted specimen images
+### Spirit–preserved specimen images
 
 <!-- sample images -->
 
-### Mounted herbarium specimen closeup images
+### Text–focused images
+
+This class includes images dominated by text to the exclusion biological specimens or other context (e.g. specimen labels). Text–focused specimen images occasionally feature live plants, micrographs, specimen reproductions, illustrations, or biological specimens, but when they present they are frequently arbitrarily cropped or out of focus. Text may be typeset, handwritten, or a combination of both. Text is usually on paper, but may be reproduced on other materials as well.
 
 <!-- sample images -->
 
-### Spirit collection images
-
-<!-- sample images -->
-
-### Text only images
+### Unpressed specimen images
 
 <!-- sample images -->
 
 ### Xylogical specimen images
+
+Milled on at least two sides
 
 <!-- sample images -->
 
