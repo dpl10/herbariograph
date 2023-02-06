@@ -5,25 +5,25 @@ The dataset was constructed from a variety of public data sources detailed below
 <!-- find raw-dataset/ -type f -name '*.jpg' | awk -F/ '{print $2,$3}' | sort | uniq -c | awk 'BEGIN{OFS="\t"; c=""; n=0}{if(NR==1){c=$2}; if(c==$2){n+=$1}else{print "Total",c,n; c=$2; n=$1}; print $3,$2,$1}END{print "Total",c,n}' | datamash crosstab 2,1 unique 3 | perl -pe 's*N/A*0*g; s/^\t/Class\t/' | awk -F'\t' 'BEGIN{OFS="\t"}{if(NR>1){for(k=2; k<=NF; k++){totals[k]+=$k}}; print $0}END{printf "Total\t"; for(k=2; k<2+length(totals); k++){printf "%s\t", totals[k]}; printf "\n"}' | awk -F'\t' 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$20,$19}' | awk -F'\t' '{if(NR==1){print $0}else{printf $1"\t"; for(k=2; k<=NF; k++){printf("%\047d\t",$k)}; printf "\n"}}' | perl -pe 's/-/ /g; s/^([a-z])/\U$1/' | csv2md -d $'\t' -->
 | Class                                    | BHL    | BR    | C     | CHNDM | E     | F      | GH    | K     | L      | MA    | MICH  | MO    | MPU   | Met   | NY     | O     | P      | US     | Total   |
 | ---------------------------------------- | ------ | ----- | ----- | ----- | ----- | ------ | ----- | ----- | ------ | ----- | ----- | ----- | ----- | ----- | ------ | ----- | ------ | ------ | ------- |
-| Aesthetically pleasing pressed specimens | 0      | 301   | 13    | 0     | 540   | 2,798  | 1,006 | 0     | 2,879  | 448   | 228   | 20    | 137   | 0     | 3,423  | 203   | 118    | 387    | 12,501  |
+| Aesthetically pleasing pressed specimens | 0      | 306   | 13    | 0     | 590   | 2,807  | 1,008 | 0     | 2,879  | 449   | 228   | 20    | 137   | 0     | 3,435  | 216   | 120    | 396    | 12,604  |
 | Biocultural specimens                    | 0      | 0     | 1,300 | 715   | 0     | 3,458  | 0     | 1,897 | 35     | 0     | 0     | 114   | 0     | 5,196 | 3      | 0     | 0      | 0      | 12,718  |
-| Corrupted images                         | 0      | 1     | 0     | 0     | 0     | 0      | 2     | 0     | 14     | 1     | 0     | 48    | 0     | 0     | 0      | 1     | 0      | 3      | 70      |
-| Fragmentary pressed specimens            | 0      | 289   | 1     | 0     | 104   | 1,884  | 48    | 0     | 474    | 27    | 37    | 14    | 41    | 0     | 836    | 7     | 304    | 169    | 4,235   |
-| Illustrations color                      | 10,356 | 216   | 0     | 0     | 1     | 48     | 1     | 0     | 1      | 0     | 0     | 0     | 4     | 0     | 3      | 0     | 16     | 0      | 10,646  |
-| Illustrations gray                       | 8,227  | 3,305 | 0     | 0     | 36    | 270    | 2     | 0     | 53     | 3     | 1     | 51    | 37    | 0     | 41     | 2     | 246    | 2      | 12,276  |
-| Live plants                              | 0      | 971   | 0     | 0     | 2,048 | 416    | 3     | 0     | 10     | 2     | 2     | 2,048 | 5     | 0     | 26     | 3     | 2,048  | 2,048  | 9,630   |
-| Micrographs                              | 0      | 0     | 0     | 0     | 16    | 425    | 0     | 0     | 0      | 0     | 0     | 2     | 3     | 0     | 5      | 0     | 1,330  | 8,520  | 10,301  |
+| Corrupted images                         | 0      | 1     | 0     | 0     | 0     | 0      | 2     | 0     | 14     | 1     | 0     | 48    | 0     | 0     | 0      | 1     | 1      | 3      | 71      |
+| Fragmentary pressed specimens            | 0      | 307   | 0     | 0     | 125   | 1,763  | 48    | 0     | 469    | 41    | 37    | 14    | 40    | 0     | 833    | 7     | 299    | 168    | 4,151   |
+| Illustrations color                      | 10,356 | 217   | 0     | 0     | 2     | 48     | 1     | 0     | 1      | 0     | 0     | 0     | 4     | 0     | 3      | 0     | 16     | 0      | 10,648  |
+| Illustrations gray                       | 8,227  | 3,306 | 0     | 0     | 36    | 270    | 2     | 0     | 53     | 4     | 1     | 51    | 38    | 0     | 41     | 2     | 248    | 2      | 12,281  |
+| Live plants                              | 0      | 971   | 0     | 0     | 2,049 | 417    | 3     | 0     | 10     | 2     | 2     | 2,048 | 5     | 0     | 26     | 3     | 2,048  | 2,048  | 9,632   |
+| Micrographs                              | 0      | 0     | 0     | 0     | 16    | 425    | 0     | 0     | 0      | 0     | 0     | 2     | 3     | 0     | 5      | 0     | 1,331  | 8,520  | 10,302  |
 | Microscope slides                        | 0      | 0     | 0     | 0     | 0     | 0      | 0     | 0     | 12,456 | 0     | 0     | 0     | 0     | 0     | 2      | 0     | 0      | 0      | 12,458  |
-| Mixed pressed specimens                  | 0      | 110   | 1     | 0     | 1,177 | 128    | 497   | 0     | 30     | 6     | 187   | 3     | 24    | 0     | 1,714  | 202   | 411    | 484    | 4,974   |
-| Occluded specimens                       | 0      | 167   | 309   | 0     | 200   | 296    | 97    | 0     | 873    | 14    | 2,669 | 1     | 30    | 0     | 2,841  | 583   | 4,003  | 511    | 12,594  |
-| Ordinary pressed specimens               | 0      | 1,308 | 170   | 0     | 488   | 872    | 411   | 0     | 1,303  | 284   | 443   | 1,225 | 806   | 0     | 1,463  | 538   | 1,305  | 1,192  | 11,808  |
-| Pressed specimen reproductions           | 0      | 611   | 0     | 0     | 191   | 8,611  | 3     | 0     | 75     | 2     | 20    | 4     | 17    | 0     | 25     | 1     | 25     | 11     | 9,596   |
-| Pressed specimens closeup                | 0      | 235   | 0     | 0     | 150   | 1,684  | 0     | 0     | 8      | 5     | 329   | 99    | 14    | 0     | 248    | 41    | 507    | 2      | 3,322   |
-| Spirit preserved specimens               | 0      | 0     | 106   | 0     | 0     | 0      | 0     | 18    | 5      | 0     | 0     | 0     | 0     | 0     | 534    | 0     | 0      | 0      | 663     |
-| Text focused                             | 0      | 483   | 0     | 0     | 187   | 9      | 1     | 1     | 4      | 273   | 192   | 536   | 607   | 0     | 1,931  | 2,913 | 1,105  | 1,575  | 9,817   |
-| Unpressed specimens                      | 0      | 39    | 46    | 0     | 4     | 1,328  | 4     | 389   | 109    | 0     | 7     | 59    | 1     | 0     | 1,418  | 0     | 20     | 6      | 3,430   |
-| Xylogical specimens                      | 0      | 2     | 1     | 0     | 0     | 132    | 0     | 43    | 21     | 0     | 0     | 2     | 0     | 0     | 4      | 0     | 0      | 0      | 205     |
-| Total                                    | 18,583 | 8,038 | 1,947 | 715   | 5,142 | 22,359 | 2,075 | 2,348 | 18,350 | 1,065 | 4,115 | 4,226 | 1,726 | 5,196 | 14,517 | 4,494 | 11,438 | 14,910 | 141,244 |
+| Mixed pressed specimens                  | 0      | 223   | 1     | 0     | 1,626 | 214    | 1,054 | 0     | 31     | 10    | 173   | 3     | 41    | 0     | 2,067  | 358   | 894    | 649    | 7,344   |
+| Occluded specimens                       | 0      | 178   | 309   | 0     | 200   | 296    | 97    | 0     | 873    | 17    | 2,669 | 1     | 30    | 0     | 2,846  | 583   | 4,005  | 511    | 12,615  |
+| Ordinary pressed specimens               | 0      | 1,518 | 175   | 0     | 739   | 1,000  | 461   | 0     | 1,303  | 437   | 641   | 1,225 | 888   | 0     | 1,514  | 674   | 1,305  | 1,196  | 13,076  |
+| Pressed specimen reproductions           | 0      | 615   | 0     | 0     | 191   | 8,614  | 3     | 0     | 75     | 2     | 20    | 4     | 17    | 0     | 25     | 1     | 25     | 11     | 9,603   |
+| Pressed specimens closeup                | 0      | 228   | 0     | 0     | 157   | 1,678  | 0     | 0     | 8      | 7     | 328   | 99    | 21    | 0     | 259    | 41    | 503    | 1      | 3,330   |
+| Spirit preserved specimens               | 0      | 0     | 106   | 0     | 0     | 0      | 0     | 18    | 5      | 0     | 0     | 0     | 0     | 0     | 536    | 0     | 0      | 0      | 665     |
+| Text focused                             | 0      | 486   | 0     | 0     | 188   | 9      | 1     | 1     | 4      | 275   | 192   | 536   | 607   | 0     | 1,954  | 2,913 | 1,106  | 1,576  | 9,848   |
+| Unpressed specimens                      | 0      | 42    | 46    | 0     | 16    | 1,458  | 4     | 389   | 109    | 1     | 68    | 59    | 2     | 0     | 3,389  | 0     | 48     | 7      | 5,638   |
+| Xylogical specimens                      | 0      | 2     | 1     | 0     | 0     | 132    | 0     | 43    | 21     | 0     | 0     | 2     | 0     | 0     | 6      | 0     | 0      | 0      | 207     |
+| Total                                    | 18,583 | 8,400 | 1,951 | 715   | 5,935 | 22,589 | 2,684 | 2,348 | 18,346 | 1,246 | 4,359 | 4,226 | 1,833 | 5,196 | 16,944 | 4,799 | 11,949 | 15,088 | 147,191 |
 
 
 ## Animal specimen images
@@ -166,7 +166,7 @@ This class includes images dominated by text to the exclusion biological specime
 
 ### Unpressed specimen images
 
-This class includes images of dried unpressed biological specimens. These preserved samples are typically unmounted and represent reproductive or vegetative parts too bulky to be pressed. Other than drying, these specimens have not been modified from their natural state. 
+This class includes images of dried unpressed biological specimens. These preserved samples are typically unmounted and represent reproductive or vegetative parts too bulky to be pressed. Specimens that include a mixture of pressed and unpressed materials are not included in this class. Other than drying, these specimens have not been modified from their natural state. 
 
 <!-- sample images -->
 
