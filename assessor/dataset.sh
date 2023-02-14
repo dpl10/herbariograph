@@ -18,6 +18,8 @@ while(my $row = $csv->getline(STDIN)){
 
 DOWNLOAD='XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); wget -O "$XXH".jpg "$URL"; MINWAIT=3; MAXWAIT=7; sleep $((MINWAIT+RANDOM % (MAXWAIT-MINWAIT)))'
 
+DOWNLOADRESIZE='MINWAIT=3; MAXWAIT=7; sleep $((MINWAIT+RANDOM % (MAXWAIT-MINWAIT))); HERBARIUM=$(echo "{}" | awk -F"\t" "{print \$2}"); URL=$(echo "{}" | awk -F"\t" "{print \$3}"); XXH=$(echo "{}" | awk -F"\t" "{print \$1}"); wget -O "$XXH".jpg "$URL" && ./resizeImage.py -e resized-images/"$HERBARIUM" -f "$XXH".jpg -p -q 94 -s 1024 && rm -f "$XXH".jpg'
+
 SELECT1000='
 import sys
 OCCURRENCEID = 1
@@ -64,36 +66,50 @@ for line in sys.stdin:
          count += 1
 '
 
+XXHASH='
+import sys
+import xxhash
+for k, line in enumerate(sys.stdin):
+   if k:
+      x = line.strip()
+      print(f"{x}\t{xxhash.xxh64(x).hexdigest()}")
+   else:
+      print("occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64")
+'
+
 
 
 ###
 ### DATASET CREATION
 ###
 
-HERBARIA=( 'BR' 'C' 'E' 'F' 'GH' 'K' 'L' 'MA' 'MICH' 'MO' 'MPU' 'NSW' 'NY' 'O' 'P' 'US' ) ### 16; additional options (number of specimen records): V, LY, TEX, NCU, RSA, COLO, USF, TRH 
+HERBARIA=( 'BR' 'C' 'E' 'F' 'GH' 'K' 'L' 'MA' 'MICH' 'MO' 'MPU' 'NY' 'O' 'P' 'US' ) ### 15; additional options (number of specimen records): V, LY, TEX, NCU, RSA, COLO, USF, TRH
 for HERBARIUM in "${HERBARIA[@]}"; do
-   mkdir -p 'raw-dataset/aesthetically-pleasing-mounted-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/aesthetically-pleasing-pressed-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/animal-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/biocultural-specimens/'$HERBARIUM
-   mkdir -p 'raw-dataset/carpological-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/corrupted-images/'$HERBARIUM
+   mkdir -p 'raw-dataset/fragmentary-pressed-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/illustrations-color/'$HERBARIUM
    mkdir -p 'raw-dataset/illustrations-gray/'$HERBARIUM
-   mkdir -p 'raw-dataset/invisible-mounted-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/live-plants/'$HERBARIUM
-   mkdir -p 'raw-dataset/ordinary-mounted-specimens-closeup/'$HERBARIUM
-   mkdir -p 'raw-dataset/ordinary-mounted-specimens/'$HERBARIUM
-   mkdir -p 'raw-dataset/spirit-collections/'$HERBARIUM
-   mkdir -p 'raw-dataset/text-only/'$HERBARIUM
+   mkdir -p 'raw-dataset/micrographs/'$HERBARIUM
+   mkdir -p 'raw-dataset/microscope-slides/'$HERBARIUM
+   mkdir -p 'raw-dataset/mixed-pressed-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/occluded-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/ordinary-pressed-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/pressed-specimen-reproductions/'$HERBARIUM
+   mkdir -p 'raw-dataset/pressed-specimens-closeup/'$HERBARIUM
+   mkdir -p 'raw-dataset/spirit-preserved-specimens/'$HERBARIUM
+   mkdir -p 'raw-dataset/text-focused/'$HERBARIUM
+   mkdir -p 'raw-dataset/unpressed-specimens/'$HERBARIUM
    mkdir -p 'raw-dataset/xylogical-specimens/'$HERBARIUM
 #
-# 13 classes (11 if bulk unmounted only)
-# + seedling with help of BR + L (phaseOrStage)?
-# + fruit, vegetative, flower with help of BR + L (phaseOrStage)
-# + slides?
-# + SEM?
-# + other (natural vs anthropogenic)?
-#  
-# 2^13 = 8,192
+# 19
+# + seedlings? (BR?)
+# + maps?
+# + bark?
+# + illustration focused
 #
 done
 mkdir -p raw-dataset/biocultural-specimens/CHNDM
@@ -101,15 +117,13 @@ mkdir -p raw-dataset/biocultural-specimens/Met
 mkdir -p raw-dataset/illustrations-color/BHL
 mkdir -p raw-dataset/illustrations-gray/BHL
 
-find raw-dataset -type d | xargs -I {} -P 1 mkdir -p 'final-dataset/{}'
-
 
 
 ###
 ### ILLUSTRATIONS
 ###
 ### manually download plant illustrations from BHL via https://www.flickr.com/photos/biodivlibrary/albums
-### manually removed non-illustrations 
+### manually removed non-illustrations
 ### also manually separated from other institutional downloads (see below)
 
 ### LDA from 20 arbitrarily selected images (should probably have used more than 20 images and used SVM in place of LDA)
@@ -190,39 +204,6 @@ cd ../../
 
 
 ###
-### LIVE PLANT IMAGES
-###
-### manually separated from MO Herbarium2022 download
-### from NY Emu a maximum of 15 images per genus (by Leanna McMillin)
-### manually separated from other institutional downloads (see below)
-
-#
-# make table of mo live images ../../FGCV2022/mo-file-names.tsv => ../../FGCV2022/herbarium2022-v2-unlimited.tsv.xz
-# make table of ny live images 
-#
-
-### BR
-### color: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22PC%22,%22count%22:849%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
-unzip -c herbarium_export_20221123032913.zip herbarium_export_20221123032913.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' > x
-
-### grayscale: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:849%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22PB%22,%22count%22:742%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:849%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
-unzip -c herbarium_export_20221123033141.zip herbarium_export_20221123033141.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' >> x
-
-### other: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22P%22,%22count%22:62%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
-unzip -c herbarium_export_20221123033521.zip herbarium_export_20221123033521.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' >> x
-
-echo -n '' > y
-sort -u x | while read -r line; do
-   echo -n "$line" | xxh64sum | awk '{print $1}' >> y
-done
-echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > BR-live.tsv
-sort -u x | paste - y >> BR-live.tsv ### 1,659 records
-mkdir -p original-images/BR-live
-cd original-images/BR-live
-tail -n +2 ../../BR-live.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
-cd ../../
-
-###
 ### GBIF SPECIMEN IMAGES
 ###
 ### manual search of GBIF 24 October 2022
@@ -238,10 +219,10 @@ cd ../../
 #   ]
 # }
 wget https://api.gbif.org/v1/occurrence/download/request/0117680-220831081235567.zip
-GBIF=0117680-220831081235567.zip 
+GBIF=0117680-220831081235567.zip
 ### unzip -c $GBIF occurrence.txt | head -3 | tail -1 | tr '\t' '\n' | awk '{print NR ": " $1}'
 
-### BR 
+### BR
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MeiseBG")&&($61=="BR")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 1,381,188 records
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') BR-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert BR-specimens.bloom.gz
@@ -261,7 +242,7 @@ unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length(
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') F-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert F-specimens.bloom.gz
 
-### GH 
+### GH
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="GH")&&($61=="GH")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 686,404 records
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') GH-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert GH-specimens.bloom.gz
@@ -276,7 +257,7 @@ unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length(
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MA-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert MA-specimens.bloom.gz
 
-### MICH 
+### MICH
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MICH")&&(($61=="Angiosperms")||($61=="Gymnosperms")||($61=="Pteridophytes"))){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 426,799 records
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MICH-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert MICH-specimens.bloom.gz
@@ -286,15 +267,10 @@ unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length(
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MO-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert MO-specimens.bloom.gz
 
-### MPU 
+### MPU
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="UM")&&($61=="MPU")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 829,857 records
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') MPU-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert MPU-specimens.bloom.gz
-
-### NSW
-unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NSW")&&($61=="NSW")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 381,683 records
-bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') NSW-specimens.bloom.gz
-awk -F'\t' '{print $1}' s | bloom -gz insert NSW-specimens.bloom.gz
 
 ### NY
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 2,727,071 records
@@ -306,7 +282,7 @@ unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length(
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') O-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert O-specimens.bloom.gz
 
-### P 
+### P
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MNHN")&&($61=="P")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 5,670,710 records
 bloom -gz create -p 0.0000001 -n $(wc -l s | awk '{print $1}') P-specimens.bloom.gz
 awk -F'\t' '{print $1}' s | bloom -gz insert P-specimens.bloom.gz
@@ -330,10 +306,10 @@ xz -cdk download.ndjson.xz | jq -r '[.sourceSystemId, .identifications[0].scient
 
 
 ###
-### UNMOUNTED AND INVISIBLE SPECIMEN IMAGES
+### UNMOUNTED AND OCCLUDED SPECIMEN IMAGES
 ###
 
-### BR 
+### BR
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MeiseBG")&&($61=="BR")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 1,381,188 records
 sort -t$'\t' -k 1b,1 s > t
 unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check BR-specimens.bloom.gz > m ### gbifID, identifier; 2,765,564 records
@@ -491,13 +467,172 @@ ls *.jpg | perl -pe 's/\.jpg$//' > done
 tail -n +2 ../../K-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
-### L 
-#
-# query parts or type of material
-# collectionType
-# https://api.biodiversitydata.nl/scratchpad/; {"conditions":[{"field":"collectionType","operator":"EQUALS","value":"Botany"},{"field":"license","operator":"STARTS_WITH","value":"CC"},{"field":"collectionType","operator":"EQUALS","value":"Bark samples"}]}
-# add L preparationType = microscopic slide {"field":"preparationType","operator":"MATCHES","value":"microscopic slide"}
-# add L preparationType = wet specimen | alcohol {"field":"preparationType","operator":"MATCHES","value":"wet specimen"}]} {"field":"preparationType","operator":"MATCHES","value":"alcohol"}
+### L: bark sample: 126 records
+echo '' > L-bark.txt
+for k in {0..120..10}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Bark+sample&logicalOperator=AND&from='$k'&size=10' | grep -h -Po "(?<=href=')[^']*" >> L-bark.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-bark.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-bark-specimens.bloom.gz
+cat x | bloom -gz insert L-bark-specimens.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-bark-specimens.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-bark-specimens.tsv
+mkdir -p L/bark
+cd L/bark
+tail -n +2 ../../L-bark-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### L: carp: 13,448 records
+echo '' > L-carp.txt
+for k in {0..13400..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Carpologica&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-carp.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-carp.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./i;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-carp-specimens.bloom.gz
+cat x | bloom -gz insert L-carp-specimens.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-carp-specimens.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-carp-specimens.tsv
+mkdir -p L/carp
+cd L/carp
+tail -n +2 ../../L-carp-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### L: illustration: 239 records
+echo '' > L-illustration.txt
+for k in {0..200..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Illustration,+drawings&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-illustration.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-illustration.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-illustrations.bloom.gz
+cat x | bloom -gz insert L-illustrations.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-illustrations.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-illustrations.tsv
+mkdir -p L/illustrations
+cd L/illustrations
+tail -n +2 ../../L-illustrations.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### L: microscope slides: 90,760 anatomy records; 20,182 morphology records; 36,636 pollen records
+echo '' > L-slides.txt
+for k in {0..90700..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Microscopic+slide:+Anatomy&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-slides.txt
+done
+for k in {0..20100..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Microscopic+slide:+Morphology&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-slides.txt
+done
+for k in {0..36600..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Microscopic+slide:+Pollen&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-slides.txt
+done
+wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Slides&logicalOperator=AND&from=0&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-slides.txt
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-slides.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./i;s/^U\.{0,1}/U./i;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-slides.bloom.gz
+cat x | bloom -gz insert L-slides.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-slides.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-slides.tsv
+mkdir -p L/slides
+cd L/slides
+tail -n +2 ../../L-slides.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+./dhash.py -i L/slides/ > x
+echo '64' $(wc -l x | awk '{print $1-1}') > y
+tail -n +2 x | awk -F'\t' 'BEGIN{x=0}{print $2,x;x++}' >> y
+hamming y 22 > z
+awk '{if($1<=10){print $3}}' z | sort -u > zz ### 71,080 of 83,593 leaving 12,513 that are more than 10/64 (85%) different
+bloom -gz create -p 0.0000001 -n $(wc -l zz | awk '{print $1}') zz.bloom.gz
+cat zz | bloom -gz insert zz.bloom.gz
+cat y | tr ' ' '\t' | bloom -gz -d $'\t' -f 1 -s check zz.bloom.gz | awk -F'\t' '{print $1}' > zzz
+tail -n +2 x | awk -F'\t' 'BEGIN{x=0}{print $2}' >> zzz
+sort zzz | uniq -c | grep ' 1 ' | awk '{print $2}' > xx
+bloom -gz create -p 0.0000001 -n $(wc -l xx | awk '{print $1}') xx.bloom.gz
+cat xx | bloom -gz insert xx.bloom.gz
+cat x | bloom -gz -d $'\t' -f 1 -s check xx.bloom.gz | awk -F'\t' '{print $1}' | xargs -I {} -P 1 bash -c 'cp L/slides/{} raw-dataset/microscope-slides/L/'
+
+### L: photo: 558 records
+echo '' > L-photo.txt
+for k in {0..500..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Photographs%2F+negatives&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-photo.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-photo.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-photos.bloom.gz
+cat x | bloom -gz insert L-photos.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-photos.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-photos.tsv
+mkdir -p L/photo
+cd L/photo
+tail -n +2 ../../L-photos.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### L: preserved: 417 records
+echo '' > L-preserved.txt
+for k in {0..400..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Preserved+Specimen&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-preserved.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-preserved.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-preserved.bloom.gz
+cat x | bloom -gz insert L-preserved.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-preserved.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-preserved.tsv
+mkdir -p L/preserved
+cd L/preserved
+tail -n +2 ../../L-preserved.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### L: reproduction: 280 records
+echo '' > L-reproduction.txt
+for k in {0..200..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=photo(copy)+of+herbarium+sheet&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-reproduction.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-reproduction.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/\++//;' | grep -v nyIMG_ | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-reproduction.bloom.gz
+cat x | bloom -gz insert L-reproduction.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-reproduction.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-reproduction.tsv 
+mkdir -p L/reproduction
+cd L/reproduction
+tail -n +2 ../../L-reproduction.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### L: rhizome: 59 records
+wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Rhizome&logicalOperator=AND&from=0&size=100' | grep -h -Po "(?<=href=')[^']*" > L-rhizome.txt
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-rhizome.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-rhizome-specimens.bloom.gz
+cat x | bloom -gz insert L-rhizome-specimens.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-rhizome-specimens.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-rhizome-specimens.tsv ### 0
+
+### L: seed collection; 381 records
+echo '' > L-seed.txt
+for k in {0..300..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Seed+collection&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-seed.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-seed.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-seed-specimens.bloom.gz
+cat x | bloom -gz insert L-seed-specimens.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-seed-specimens.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-seed-specimens.tsv
+mkdir -p L/seed
+cd L/seed
+tail -n +2 ../../L-seed-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### L: spirit collection; 27,520 records
+echo '' > L-spirit.txt
+for k in {0..27500..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Spirit+collection&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-spirit.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-spirit.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./i;s/^U\.{0,1}/U./;s/^WAG\.{0,1}/WAG./i;s/^W-G/WAG./;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-spirit-collections.bloom.gz
+cat x | bloom -gz insert L-spirit-collections.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-spirit-collections.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-spirit-collections.tsv
+mkdir -p L/spirit
+cd L/spirit
+tail -n +2 ../../L-spirit-collections.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+### L: wood; 98,109 records
+echo '' > L-wood.txt
+for k in {0..98100..100}; do
+   wget -O - 'https://bioportal.naturalis.nl/result/specimen/collectionType=Botany&kindOfUnit[0]=Wood+sample&logicalOperator=AND&from='$k'&size=100' | grep -h -Po "(?<=href=')[^']*" >> L-wood.txt
+done
+grep 'https://bioportal\.naturalis\.nl/specimen/' L-wood.txt | awk -F/ '{print $5}' | perl -pe 's/^AMD\.{0,1}/AMD./;s/^L\.{0,1}/L./i;s/^U\.{0,1}/U./i;s/^WAG\.{0,1}/WAG./i;s/\++//;' | sort -u > x
+bloom -gz create -p 0.0000001 -n $(wc -l x | awk '{print $1}') L-wood-specimens.bloom.gz
+cat x | bloom -gz insert L-wood-specimens.bloom.gz
+cat L-specimens.tsv | perl -pe 's/_[0-9]+\t/\t/' | bloom -gz -d $'\t' -f 1 -s check L-wood-specimens.bloom.gz | awk -F'\t' 'BEGIN{OFS="\t"}{print $2,$3,$4,$5,$6}' | python3 -c "$XXHASH" > L-wood-specimens.tsv
+mkdir -p L/wood
+cd L/wood
+tail -n +2 ../../L-wood-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
 
 ### MA
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MA")&&($61=="MA")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 305,022 records
@@ -547,10 +682,7 @@ ls *.jpg | perl -pe 's/\.jpg$//' > done
 tail -n +2 ../../MICH-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
-#
-# fix ->
-#
-### MO
+### MO (BROKEN)
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="MO")&&($61=="MO")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 476,015 records
 sort -t$'\t' -k 1b,1 s > t
 unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check MO-specimens.bloom.gz > m ### gbifID, identifier; 674,920 records
@@ -570,14 +702,7 @@ mkdir -p original-images/MO-multi
 cd original-images/MO-multi
 ls *.jpg | perl -pe 's/\.jpg$//' > done
 tail -n +2 ../../MO-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P 1 bash -c 'XXH=$(echo "{}" | awk "{print substr(\$1,1,16)}"); URL=$(echo "{}" | awk "{print substr(\$1,17)}"); save-page.sh "$URL" --browser firefox --load-wait-time 13 --save-wait-time 3 --destination "$XXH".jpg'
-# find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
-#
-# remove duplicates...
-#
 cd ../../
-#
-# <- fix
-#
 
 ### MPU
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="UM")&&($61=="MPU")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 829,857 records
@@ -601,30 +726,6 @@ tail -n +2 ../../MPU-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I 
 find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
 ls *.jpg | perl -pe 's/\.jpg$//' > done
 tail -n +2 ../../MPU-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
-cd ../../
-
-### NSW
-unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NSW")&&($61=="NSW")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 381,683 records
-sort -t$'\t' -k 1b,1 s > t
-unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check NSW-specimens.bloom.gz > m ### gbifID, identifier; 382,621 records
-sort -t$'\t' -k 1b,1 m > n
-join -a 2 -1 1 -2 1 -t$'\t' -e EMPTY t n | cut -d$'\t' -f2- | grep -v EMPTY | awk -F'\t' -v seed=$(echo -n 'random number seed for NSW specimen images' | xxh32sum | awk '{print "obase=10; ibase=16; " toupper($1)}' | bc) 'BEGIN{OFS="\t"; srand(seed)}{if(($2=="NSW")&&($3=="NSW")){print int(rand()*10000000),$1,$2,$3,$4,$5}}' > NSW-specimens.tsv ### random, occurrenceID, institutionCode, collectionCode, scientificName, url; 382,619 records
-awk -F'\t' '{print $2}' NSW-specimens.tsv | sort | uniq -d > d ### 784 records
-bloom -gz create -p 0.0000001 -n $(wc -l d | awk '{print $1}') NSW-multi-specimens.bloom.gz
-cat d | bloom -gz insert NSW-multi-specimens.bloom.gz
-sort -n NSW-specimens.tsv | bloom -gz -d $'\t' -f 1 -s check NSW-multi-specimens.bloom.gz | python3 -c "$SELECTDUP" > e ### 1,081 records
-echo -n '' > x
-cat e | while read -r line; do
-   echo -n "$line" | xxh64sum | awk '{print $1}' >> x
-done
-echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > NSW-multi-specimens.tsv
-paste e x >> NSW-multi-specimens.tsv ### 1,081 records
-mkdir -p original-images/NSW-multi
-cd original-images/NSW-multi
-tail -n +2 ../../NSW-multi-specimens.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
-find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
-ls *.jpg | perl -pe 's/\.jpg$//' > done
-tail -n +2 ../../NSW-multi-specimens.tsv | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
 ### NY
@@ -743,7 +844,7 @@ tail -n +2 ../../C-BC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) 
 cd ../../
 
 #
-# cleveland
+# cleveland https://github.com/ClevelandMuseumArt/openaccess
 #
 
 ### Cooper Hewitt (Smithsonian Design Museum; 16 November 2022)
@@ -799,13 +900,13 @@ cd original-images/ECON-original
 grep -P 'ECON\tECON' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD" ### 7,168 images, all sheets
 cd ../
 mkdir ECON
-../../resizeImage.py -i ECON-original -o ECON -q 94 -p -s 4096
+../../resizeImage.py -d ECON-original -e ECON -q 94 -p -s 4096
 cd ../
 
 mkdir -p original-images/EBC
 cd original-images/EBC
 grep -P 'EBC\tEBC' ../../ECON+EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P 1 bash -c "$DOWNLOAD" ### 303 downloads, all empty files
-cd ../../ 
+cd ../../
 
 ### K (Economic Botany Collection; 24 October 2022)
 wget https://orphans.gbif.org/GB/1d31211e-350e-492a-a597-34d24bbc1769.zip
@@ -820,19 +921,15 @@ cd original-images/K
 tail -n +2 ../../K-EBC.tsv | awk -F'\t' '{print $3$2}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
-#
-# not many, but https://bioportal.naturalis.nl/?language=en
-#
-
 ### Met (Metropolitan Museum of Art; 15-16 November 2022)
 wget https://github.com/metmuseum/openaccess/raw/master/MetObjects.csv
 xz -9 MetObjects.csv
-xz -cdk MetObjects.csv.xz | perl -CS -MText::CSV -le "$CSV2TSV" | awk -F'\t' 'BEGIN{OFS="\t"}{if(($4=="True")&&(($46~/Amber/)||($46~/Bamboo/)||($46~/Bark/)||($46~/Basketry/)||($46~/Gourd/)||($46~/Paper/)||($46~/Papyrus/)||($46~/Tobacco/)||($46~/Wood/))){print $1,$9,$46,$48}}' | grep -v -e 'Cut Paper' -e 'Paper-' -e 'Pastels & Oil Sketches on Paper' -e 'Works on Paper' > x 
+xz -cdk MetObjects.csv.xz | perl -CS -MText::CSV -le "$CSV2TSV" | awk -F'\t' 'BEGIN{OFS="\t"}{if(($4=="True")&&(($46~/Amber/)||($46~/Bamboo/)||($46~/Bark/)||($46~/Basketry/)||($46~/Gourd/)||($46~/Paper/)||($46~/Papyrus/)||($46~/Tobacco/)||($46~/Wood/))){print $1,$9,$46,$48}}' | grep -v -e 'Cut Paper' -e 'Paper-' -e 'Pastels & Oil Sketches on Paper' -e 'Works on Paper' > x
 echo -n '' > y
 cat x | while read -r line; do
    echo -n "$line" | xxh64sum | awk '{print $1}' >> y
 done
-echo -e 'Object Number\tObject Name\tClassification\tLink Resource\txxh64' > Met.tsv 
+echo -e 'Object Number\tObject Name\tClassification\tLink Resource\txxh64' > Met.tsv
 paste x y >> Met.tsv ### 3,019 records
 mkdir Met
 cd Met
@@ -854,9 +951,6 @@ tail -n +2 ../../Met-objects.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(
 cd ../../
 
 ### MO also has collections, but difficult to individually extract
-#
-# add 
-#
 # MO (also) http://www.mobot.org/plantscience/resbot/Econ/EconBot01.htm
 
 ### NY
@@ -878,12 +972,9 @@ cd original-images/NY-ebc
 tail -n +2 ../../NY-EBC.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
 cd ../../
 
-
-
-
-
 # amnh?
-# 3 https://library.artstor.org
+# * https://library.artstor.org
+#    * Cornell? https://emuseum.cornell.edu
 # * https://researcharchive.calacademy.org/research/anthropology/collections/index.asp
 # * https://www.botanicgardens.org/our-collections/kathryn-kalmbach-herbarium-vascular-plants
 # * https://www.soroherbaria.org/portal/collections/misc/collprofiles.php?collid=113
@@ -894,10 +985,80 @@ cd ../../
 # * https://www.nms.ac.uk/explore-our-collections/search-our-collections/
 # * http://argus.musnaz.org/ArgusNET/Portal/Default.aspx?lang=en-US
 # * https://www.herbariumcurators.org/unam
-
 #
 # darwin cores
 #
+
+
+
+###
+### ALL SPECIMENS
+###
+
+printf "%s\n" "${HERBARIA[@]}" | xargs -I {} -P $(nproc) bash -c "cat {}-specimens.tsv | python3 -c '$XXHASH' > {}-specimens-xx.tsv"  ### python is much faster, but produces different hashes than bash, so everything has to be downloaded again
+for HERBARIUM in "${HERBARIA[@]}"; do
+   mkdir -p 'original-images/'$HERBARIUM
+done
+grep -v occurrenceID *-specimens-xx.tsv | perl -pe 's/-specimens-xx\.tsv:/\t/' | awk -F'\t' 'BEGIN{OFS="\t"}{print $8,$1,$7}' > x ### 25,718,337 records ca. 152.9TB (*-multi has 891,143 files at 5.3T => 0.000005947TB/file)
+
+sort x | head -n 1000 | awk -F'\t' '{print $2}' | sort | uniq -c | sort -n
+#    2 C
+#    2 K
+#   15 MA
+#   17 MICH
+#   27 MPU
+#   27 O
+#   30 E
+#   31 GH
+#   31 MO
+#   53 F
+#   92 NY
+#  101 BR
+#  143 US
+#  184 L
+#  229 P
+mkdir -p test-quality
+cd test-quality
+sort ../x | head -n 1000 | awk -F'\t' '{print $1$3}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD" ### 884 downloaded
+cd ../
+
+mkdir -p test-quality-100
+../resizeImage.py -d test-quality -e test-quality-100 -q 100 -p -s 1024
+echo -e 'quality\tfile\tRMSE' > test-quality.tsv
+QUALITIES=( 98 96 94 92 90 88 86 84 82 80 78 76 74 72 70 )
+for QUALITY in "${QUALITIES[@]}"; do ### based on https://github.com/rflynn/imgmin
+   DIR='test-quality-'$QUALITY
+   mkdir -p $DIR
+   ../resizeImage.py -d test-quality -e $DIR -q $QUALITY -p -s 1024
+   find $DIR -type f -name '*.jpg' | awk -F/ '{print $NF}' | perl -pe 's/\.jpg$//' | xargs -I {} -P $(nproc) bash -c 'echo -e "'$QUALITY'\t{}\t$(compare -metric RMSE test-quality-100/{}.jpg '$DIR'/{}.jpg null 2>&1 3>&1 | tr -d "()" | awk "{print 100*\$2}")" >> test-quality.tsv'
+done
+
+echo -e 'quality\t%RMSE>1' > test-quality-summary.tsv
+for QUALITY in "${QUALITIES[@]}"; do
+   awk -F'\t' -v QUALITY=$QUALITY 'BEGIN{OFS="\t"}{if($1==QUALITY){i++;if($3>1.0){r++}}}END{print QUALITY,100*(r/i)}' test-quality.tsv >> test-quality-summary.tsv
+done
+### => use quality 94 (1.8% images need better quality)
+
+# mkdir docker
+# cd docker
+# echo 'FROM ubuntu:jammy' > Dockerfile
+# echo 'RUN apt update -y && apt upgrade -y && apt install python3-opencv -y && apt install wget -y && apt install xxhash -y' >> Dockerfile
+# docker build -t 'ubuntu:jammy-opencv' .
+# cd ../
+
+printf "%s\n" "${HERBARIA[@]}" | xargs -I {} -P 1 mkdir -p 'resized-images/'{}
+sort x > y
+# nohup docker run -v "${PWD}:/tmp" -w /tmp ubuntu:jammy-opencv bash -c './x.sh' > nohup.out 2>&1 &
+cat y | xargs -I {} -P 32 bash -c "$DOWNLOADRESIZE" ### 25,718,337 records ca. 4.9TB @ q = 94 (test-quality-94 has 885 files at 172M => 0.194350282M/file)
+for HERBARIUM in "${HERBARIA[@]}"; do
+   cd 'original-images/'$HERBARIUM
+   find . -type f -name '*.jpg' -exec jpeginfo -c {} \; | grep -E 'WARNING|ERROR' | awk '{print $1}' | xargs -I {} -P 1 rm {}
+   ls *.jpg | perl -pe 's/\.jpg$//' > done
+   tail -n +2 '../../'$HERBARIUM'-specimens.tsv' | grep -v -f done | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+   rm done
+   cd ../../
+done ###  downloaded
+
 
 
 ###
@@ -905,7 +1066,7 @@ cd ../../
 ###
 ### 374 pleasing specimens from NY Emu (by Leanna McMillin), manually filtered down to 331
 
-### 334 ordinary specimens from NY (maximum of 1 per genus)
+### 331 ordinary specimens from NY (maximum of 1 per genus)
 unzip -c $GBIF occurrence.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($68)&&length($60)&&length($61)&&length($189)&&($60=="NY")&&($61=="NY")){print $1,$68,$60,$61,$189}}' > s ### gbifID, occurrenceID, institutionCode, collectionCode, scientificName; 2,727,071 records
 sort -t$'\t' -k 1b,1 s > t
 unzip -c $GBIF multimedia.txt | tail +4 | awk -F'\t' 'BEGIN{OFS="\t"}{if(length($1)&&length($4)){print $1,$4}}' | bloom -gz -d $'\t' -f 0 -s check NY-specimens.bloom.gz > m ### gbifID, identifier; 2,786,110 records
@@ -942,27 +1103,342 @@ head -n 1 deep_photo_aesthetics-main/aesthetics.tsv | perl -pe 's/file/class\tfi
 tail -n +2 deep_photo_aesthetics-main/aesthetics.tsv | perl -pe 's/NY-pleasing/pleasing\tNY-pleasing/;s/NY-ordinary/ordinary\tNY-ordinary/' >> aesthetic-scores.tsv
 R CMD BATCH aesthetics.r ### ca. 10% error with sigmoid svm of all deep aesthetics output
 
-docker run -u $(id -u):$(id -g) -m 32g --rm -it -v "${PWD}:/tmp" -v "$HOME/Documents/botany/computer-vision/herbariograph/assessor/original-images" -w /tmp 'pytorch:1.9.1-aesthetics'
+### mass selection
+docker run --runtime=nvidia -u $(id -u):$(id -g) -m 32g --rm -it -v "${PWD}:/tmp" -v "$HOME:/media" -w /tmp 'pytorch:1.9.1-aesthetics'
+./predict.py -i /media/resized-images-calocedrus > all-specimen-aesthetics.tsv
+exit
+R CMD BATCH aesthetics.r ### ca. 4% of specimens are attractive
 
-#
-# test on NY-ordinary-rejects vs NY-ordinary-reserve to determine the approximate number of downloads needed
-#
+tail -n +2 all-specimen-aesthetics.tsv | awk -F'\t' '{print $1}' | awk -F/ '{print $4}' | sort | uniq -c | awk 'BEGIN{OFS="\t"}{print $2,$1}' | sort | awk -F'\t' 'BEGIN{OFS="\t"}{print $1,$2}' > x
+tail -n +2 all-specimen-aesthetic.txt | awk -F/ '{print $4}' | sort | uniq -c | awk 'BEGIN{OFS="\t"}{print $2,$1}' | sort | awk -F'\t' '{print $2}' | paste x - > y
+awk -F'\t' 'BEGIN{OFS="\t"; print "institution","specimens","pleasing","%pleasing"}{print $1,$2,$3,sprintf("%.2f",100*($3/$2))}' y > all-specimen-aesthetics-stats.tsv
 
+awk -F'\t' '{if($3<2500){print "/"$1"/"}}' all-specimen-aesthetics-stats.tsv > x
+grep -f x all-specimen-aesthetic.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"raw-dataset/aesthetically-pleasing-pressed-specimens/"$3"/"$4}' | bash
+tail -n +2 all-specimen-aesthetic.txt | grep -v -f x | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ 'BEGIN{F=0; L=0; MAX=3000; NY=0}{X=0; if($3=="F"&&F<MAX){X=1;F++}else if($3=="L"&&L<MAX){X=1;L++}else if($3=="NY"&&NY<MAX){X=1;NY++}; if(X==1){print "cp ",$0,"raw-dataset/aesthetically-pleasing-pressed-specimens/"$3"/"$4}}' | bash
+
+
+
+###
+### LIVE PLANT IMAGES
+###
+### from NY Emu a maximum of 15 images per genus (by Leanna McMillin), not used because of copyright concerns
+### manually separated from other institutional downloads (see below)
+
+### BR
+### color: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22PC%22,%22count%22:849%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123032913.zip herbarium_export_20221123032913.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' > x
+
+### grayscale: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:849%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22PB%22,%22count%22:742%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:849%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123033141.zip herbarium_export_20221123033141.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' >> x
+
+### other: https://www.botanicalcollections.be/#/en/search/specimen?filters=%7B%22__fulltext__%22:%7B%22type%22:%22FULL_TEXT%22,%22searchText%22:null%7D,%22family_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22genus_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22name_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22hasImage_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22true%22,%22count%22:1412162%7D%5D%7D,%22collectionCountryCode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22typeSpecimen_b%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorName_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22collectorNumber_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D,%22specimenKind_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22P%22,%22count%22:62%7D%5D%7D,%22plantDetails_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%7B%22key%22:%22VASCULAR_PLANTS%22,%22count%22:1412162%7D%5D%7D,%22barcode_s%22:%7B%22type%22:%22STRING_FACET%22,%22values%22:%5B%5D%7D%7D&sort=%5B%5D
+unzip -c herbarium_export_20221123033521.zip herbarium_export_20221123033521.txt | tail -n +2 | awk -F'\t' 'BEGIN{OFS="\t"}{print $9,"BR","BR",$1,$6}' | perl -pe 's!https://www.botanicalcollections.be/specimen/(BR[0-9]+)$!$1\t$1!' | perl -F'\t' -lane '$F[4]=~s!([BR0-9]{3,3})!$1/!g;$F[4]="https://oxalis.br.fgov.be/images/".$F[4].$F[5].".jpg";print(join("\t",@F[0..4]))' >> x
+
+echo -n '' > y
+sort -u x | while read -r line; do
+   echo -n "$line" | xxh64sum | awk '{print $1}' >> y
+done
+echo -e 'occurrenceID\tinstitutionCode\tcollectionCode\tscientificName\turl\txxh64' > BR-live.tsv
+sort -u x | paste - y >> BR-live.tsv ### 1,659 records
+mkdir -p original-images/BR-live
+cd original-images/BR-live
+tail -n +2 ../../BR-live.tsv | awk -F'\t' '{print $6$5}' | xargs -I {} -P $(nproc) bash -c "$DOWNLOAD"
+cd ../../
+
+
+
+###
+### SPECIMENS FROM FEATURE VECTORS (PART 0)
+###
+
+cd featureVector
+docker build -t 'tensorflow:2.9.3-gpu-features' .
+cd ../
+docker run --runtime=nvidia --rm -it -u $(id -u):$(id -g) -w /tmp -v ${PWD}:/tmp -v ${HOME}:/media tensorflow:2.9.3-gpu-features
+
+./featureVectorTest.py > all-models.tsv ### EfficientnetV2B0+Imagenet21k -or- MobileNetV3+iNaturalist+Imagenet21k
+
+./featureVectors.py -g 0 -i raw-dataset/fragmentary-pressed-specimens -l fragmentary -m EfficientnetV2B0+Imagenet21k -o vector-fragmentary.tsv -p 1024 ### 632 images total
+
+./featureVectors.py -g 0 -i raw-dataset/illustrations-color/BR -l color -m EfficientnetV2B0+Imagenet21k -o vector-color.tsv -p 256 ### 216: 273 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-color/E -l color -m EfficientnetV2B0+Imagenet21k -o vector-color.tsv -p 256 ### 1: 273 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-color/F -l color -m EfficientnetV2B0+Imagenet21k -o vector-color.tsv -p 256 ### 48: 273 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-color/MPU -l color -m EfficientnetV2B0+Imagenet21k -o vector-color.tsv -p 256 ### 3: 273 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-color/NY -l color -m EfficientnetV2B0+Imagenet21k -o vector-color.tsv -p 256 ### 2: 273 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-color/P -l color -m EfficientnetV2B0+Imagenet21k -o vector-color.tsv -p 256 ### 3: 273 images total
+
+./featureVectors.py -g 0 -i raw-dataset/illustrations-gray/BR -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 3286: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/E -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 23: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/F -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 247: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/L -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 46: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/MA -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 2: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/MO -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 51: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/MPU -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 25: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/NY -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 26: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/P -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 140: 3848 images total
+./featureVectors.py -a -g 0 -i raw-dataset/illustrations-gray/US -l gray -m EfficientnetV2B0+Imagenet21k -o vector-gray.tsv -p 256 ### 2: 3848 images total
+
+./featureVectors.py -g 0 -i raw-dataset/live-plants/BR -l live -m EfficientnetV2B0+Imagenet21k -o vector-live.tsv -p 512 ### 963: 9597 images total
+./featureVectors.py -a -g 0 -i raw-dataset/live-plants/L -l live -m EfficientnetV2B0+Imagenet21k -o vector-live.tsv -p 512 ### 10: 9597 images total
+./featureVectors.py -a -g 0 -i raw-dataset/live-plants/MA -l live -m EfficientnetV2B0+Imagenet21k -o vector-live.tsv -p 512 ### 1: 9597 images total
+./featureVectors.py -a -g 0 -i raw-dataset/live-plants/MICH -l live -m EfficientnetV2B0+Imagenet21k -o vector-live.tsv -p 512 ### 1: 9597 images total
+./featureVectors.py -a -g 0 -i raw-dataset/live-plants/MPU -l live -m EfficientnetV2B0+Imagenet21k -o vector-live.tsv -p 512 ### 2: 9597 images total
+./featureVectors.py -a -g 0 -i raw-dataset/live-plants/NY -l live -m EfficientnetV2B0+Imagenet21k -o vector-live.tsv -p 512 ### 15: 9597 images total
+./featureVectors.py -a -g 0 -i raw-dataset/live-plants/O -l live -m EfficientnetV2B0+Imagenet21k -o vector-live.tsv -p 512 ### 3: 9597 images total
+
+./featureVectors.py -g 0 -i raw-dataset/micrographs/E -l micrograph -m EfficientnetV2B0+Imagenet21k -o vector-micrograph.tsv -p 256 ### 15: 10310 images total
+./featureVectors.py -a -g 0 -i raw-dataset/micrographs/F -l micrograph -m EfficientnetV2B0+Imagenet21k -o vector-micrograph.tsv -p 256 ### 425: 10310 images total
+./featureVectors.py -a -g 0 -i raw-dataset/micrographs/MPU -l micrograph -m EfficientnetV2B0+Imagenet21k -o vector-micrograph.tsv -p 256 ### 3: 10310 images total
+./featureVectors.py -a -g 0 -i raw-dataset/micrographs/NY -l micrograph -m EfficientnetV2B0+Imagenet21k -o vector-micrograph.tsv -p 256 ### 5: 10310 images total
+./featureVectors.py -a -g 0 -i raw-dataset/micrographs/P -l micrograph -m EfficientnetV2B0+Imagenet21k -o vector-micrograph.tsv -p 256 ### 1320: 10310 images total
+./featureVectors.py -a -g 0 -i raw-dataset/micrographs/US -l micrograph -m EfficientnetV2B0+Imagenet21k -o vector-micrograph.tsv -p 256 ### 8533: 10310 images total
+
+./featureVectors.py -g 0 -i raw-dataset/microscope-slides -l slide -m EfficientnetV2B0+Imagenet21k -o vector-slide.tsv -p 512 ### 12456 images total
+
+./featureVectors.py -g 0 -i raw-dataset/mixed-pressed-specimens/BR -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 66: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/C -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 1: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/E -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 1065: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/F -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 16: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/GH -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 17: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/L -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 4: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/MA -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 3: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/MICH -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 93: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/MO -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 2: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/MPU -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 20: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/NY -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 1229: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/O -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 85: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/P -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 271: 12456 images total
+./featureVectors.py -a -g 0 -i raw-dataset/mixed-pressed-specimens/US -l mixed -m EfficientnetV2B0+Imagenet21k -o vector-mixed.tsv -p 128 ### 394: 12456 images total
+
+./featureVectors.py -g 0 -i raw-dataset/occluded-specimens/BR -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 25: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/F -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 29: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/GH -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 25: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/L -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 323: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/MA -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 1: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/MICH -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 395: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/MO -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 1: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/NY -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 842: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/O -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 11: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/P -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 8: 1664 images total
+./featureVectors.py -a -g 0 -i raw-dataset/occluded-specimens/US -l occluded -m EfficientnetV2B0+Imagenet21k -o vector-occluded.tsv -p 256 ### 4: 1664 images total
+
+./featureVectors.py -g 0 -i raw-dataset/ordinary-pressed-specimens/BR -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 766: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/C -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 7: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/E -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 118: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/F -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 150: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/GH -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 10: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/L -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 668: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/MA -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 60: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/MICH -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 28: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/MO -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 20: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/MPU -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 463: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/NY -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 779: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/O -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 158: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/P -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 536: 4577 images total
+./featureVectors.py -a -g 0 -i raw-dataset/ordinary-pressed-specimens/US -l ordinary -m EfficientnetV2B0+Imagenet21k -o vector-ordinary.tsv -p 128 ### 814: 4577 images total
+
+./featureVectors.py -g 0 -i raw-dataset/pressed-specimen-reproductions/BR -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 603: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/E -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 146: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/F -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 8235: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/GH -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 1: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/L -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 75: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/MA -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 2: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/MICH -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 12: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/MO -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 4: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/MPU -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 11: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/NY -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 9: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/O -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 1: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/P -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 9: 9114 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimen-reproductions/US -l reproduction -m EfficientnetV2B0+Imagenet21k -o vector-reproduction.tsv -p 256 ### 5: 9114 images total
+
+./featureVectors.py -g 0 -i raw-dataset/pressed-specimens-closeup/BR -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 202: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/E -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 145: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/F -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 1684: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/L -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 2: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/MA -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 1: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/MICH -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 331: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/MO -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 99: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/MPU -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 5: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/NY -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 244: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/O -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 20: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/P -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 435: 3169 images total
+./featureVectors.py -a -g 0 -i raw-dataset/pressed-specimens-closeup/US -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup.tsv -p 128 ### 1: 3169 images total
+
+./featureVectors.py -g 0 -i raw-dataset/spirit-preserved-specimens -l spirit -m EfficientnetV2B0+Imagenet21k -o vector-spirit.tsv -p 1024 ### 656 images total
+
+./featureVectors.py -g 0 -i raw-dataset/text-focused/BR -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 113: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/E -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 48: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/F -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 5: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/GH -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 1: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/K -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 1: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/L -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 1: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/MA -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 13: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/MICH -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 148: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/MO -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 536: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/MPU -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 477: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/NY -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 957: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/O -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 1730: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/P -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 532: 6203 images total
+./featureVectors.py -a -g 0 -i raw-dataset/text-focused/US -l text -m EfficientnetV2B0+Imagenet21k -o vector-text.tsv -p 128 ### 1637: 6203 images total
+
+./featureVectors.py -g 0 -i raw-dataset/unpressed-specimens/BR -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 1: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/C -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 41: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/E -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 2: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/F -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 1397: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/K -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 389: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/L -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 98: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/MICH -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 1: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/MO -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 56: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/NY -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 981: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/P -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 12: 2980 images total
+./featureVectors.py -a -g 0 -i raw-dataset/unpressed-specimens/US -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed.tsv -p 256 ### 2: 2980 images total
+
+./featureVectors.py -g 0 -i raw-dataset/xylogical-specimens -l xylogical -m EfficientnetV2B0+Imagenet21k -o vector-xylogical.tsv -p 256 ### 202 images total
+
+./featureVectors.py -g 0 -i /media/resized-images-calocedrus -l unknown -m EfficientnetV2B0+Imagenet21k -o vector-all.tsv -p 600000 ### 560,723 images total
+./featureVectors.py -a -g 0 -i /media/resized-images-macPro -l unknown -m EfficientnetV2B0+Imagenet21k -o vector-all.tsv -p 600000 ### 118,547 images total
+./featureVectors.py -g 0 -i /media/data/original-images/multi/ -l unknown -m EfficientnetV2B0+Imagenet21k -o vector-multi.tsv -p 700000 ### 647,200 images total [missing ca, 10k images from US due to restart]
+exit
+
+R CMD BATCH vector.r
+find raw-dataset -type d | perl -pe 's*^raw-dataset/*new-dataset/*' | xargs -I {} -P 1 mkdir -p {}
+tail -n +2 vector-closeup.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/pressed-specimens-closeup/"$3"/"$4}' | bash
+tail -n +2 vector-fragmentary.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/fragmentary-pressed-specimens/"$3"/"$4}' | bash
+tail -n +2 vector-illustration.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/illustrations-gray/"$3"/"$4}' | bash
+tail -n +2 vector-live.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/live-plants/"$3"/"$4}' | bash
+tail -n +2 vector-micrograph.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{if($3!="US"){print "cp ",$0,"new-dataset/micrographs/"$3"/"$4}}' | bash
+tail -n +2 vector-mixed.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/mixed-pressed-specimens/"$3"/"$4}' | bash
+tail -n +2 vector-occluded.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/occluded-specimens/"$3"/"$4}' | bash
+tail -n +2 vector-reproduction.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/pressed-specimen-reproductions/"$3"/"$4}' | bash
+tail -n +2 vector-slide.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{if($3!="L"){print "cp ",$0,"new-dataset/microscope-slides/"$3"/"$4}}' | bash
+tail -n +2 vector-spirit.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/spirit-preserved-specimens/"$3"/"$4}' | bash
+tail -n +2 vector-text.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/text-focused/"$3"/"$4}' | bash
+tail -n +2 vector-unpressed.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/unpressed-specimens/"$3"/"$4}' | bash
+tail -n +2 vector-xylogical.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"new-dataset/xylogical-specimens/"$3"/"$4}' | bash
+
+R CMD BATCH vector-multi.r
+find raw-dataset -type d | perl -pe 's*^raw-dataset/*multi-dataset/*' | xargs -I {} -P 1 mkdir -p {}
+tail -n +2 vector-occluded-multi.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/occluded-specimens/"$5"/"$6}' | bash
+tail -n +2 vector-occluded-multi.txt > done-files
+tail -n +2 vector-text-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/text-focused/"$5"/"$6}' | bash
+tail -n +2 vector-text-multi.txt >> done-files
+tail -n +2 vector-fragmentary-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/fragmentary-pressed-specimens/"$5"/"$6}' | bash
+tail -n +2 vector-fragmentary-multi.txt >> done-files
+tail -n +2 vector-unpressed-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/unpressed-specimens/"$5"/"$6}' | bash
+tail -n +2 vector-unpressed-multi.txt >> done-files
+tail -n +2 vector-mixed-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/mixed-pressed-specimens/"$5"/"$6}' | bash
+tail -n +2 vector-mixed-multi.txt >> done-files
+tail -n +2 vector-spirit-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/spirit-preserved-specimens/"$5"/"$6}' | bash
+tail -n +2 vector-spirit-multi.txt >> done-files
+tail -n +2 vector-reproduction-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/pressed-specimen-reproductions/"$5"/"$6}' | bash
+tail -n +2 vector-reproduction-multi.txt >> done-files
+tail -n +2 vector-closeup-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/pressed-specimens-closeup/"$5"/"$6}' | bash
+tail -n +2 vector-closeup-multi.txt >> done-files
+tail -n +2 vector-live-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/live-plants/"$5"/"$6}' | bash
+tail -n +2 vector-live-multi.txt >> done-files
+tail -n +2 vector-micrograph-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{if($3!="US"){print "cp ",$0,"multi-dataset/micrographs/"$5"/"$6}}' | bash
+tail -n +2 vector-micrograph-multi.txt >> done-files
+tail -n +2 vector-illustration-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/illustrations-gray/"$5"/"$6}' | bash
+tail -n +2 vector-illustration-multi.txt >> done-files
+tail -n +2 vector-slide-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{if($3!="L"){print "cp ",$0,"multi-dataset/microscope-slides/"$5"/"$6}}' | bash
+tail -n +2 vector-slide-multi.txt >> done-files
+tail -n +2 vector-xylogical-multi.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/xylogical-specimens/"$5"/"$6}' | bash
+tail -n +2 vector-xylogical-multi.txt >> done-files
+
+docker run --runtime=nvidia --rm -it -u $(id -u):$(id -g) -w /tmp -v ${PWD}:/tmp -v ${HOME}:/media tensorflow:2.9.3-gpu-features
+./featureVectors.py -g 0 -i raw-dataset/fragmentary-pressed-specimens -l fragmentary -m EfficientnetV2B0+Imagenet21k -o vector-fragmentary-4k.tsv -p 5000 ### 4,139 images total
+./featureVectors.py -g 0 -i raw-dataset/pressed-specimens-closeup -l closeup -m EfficientnetV2B0+Imagenet21k -o vector-closeup-3k.tsv -p 4000 ### 3,329 images total
+./featureVectors.py -g 0 -i raw-dataset/unpressed-specimens -l unpressed -m EfficientnetV2B0+Imagenet21k -o vector-unpressed-5k.tsv -p 6000 ### 5,637 images total
+exit
+R CMD BATCH vector-xk.r
+
+tail -n +2 vector-unpressed-5k.txt | awk -F'\t' '{print $2}' | grep -v -f done-files | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"multi-dataset/unpressed-specimens/"$5"/"$6}' | bash
+tail -n +2 vector-unpressed-multi.txt >> done-files
+
+
+### first 50 into ordinary 
+
+
+### BR-based selector (not very successful)
+# cd deep_photo_aesthetics-main/
+# docker run --runtime=nvidia -u $(id -u):$(id -g) -m 32g --rm -it -v "${PWD}:/tmp" -v "$HOME:/media" -w /tmp 'pytorch:1.9.1-aesthetics'
+# ./predict.py -i /media/Documents/botany/computer-vision/herbariograph/assessor/raw-dataset/live-plants/BR > live-specimens-aesthetics.tsv ### 925 manually selected images mounted on sheets
+# exit
+# cd ../
+# tail -n +2 all-specimen-aesthetics.tsv | awk -F'\t' '{print $1}' | awk -F/ '{print $4}' | sort | uniq -c | awk 'BEGIN{OFS="\t"}{print $2,$1}' | sort | awk -F'\t' 'BEGIN{OFS="\t"}{print $1,$2}' > x
+# tail -n +2 all-specimen-live.txt | awk -F/ '{print $4}' | sort | uniq -c | awk 'BEGIN{OFS="\t"}{print $2,$1}' | sort | awk -F'\t' '{print $2}' | paste x - > y
+# awk -F'\t' 'BEGIN{OFS="\t"; print "institution","images","live","%live"}{print $1,$2,$3,sprintf("%.2f",100*($3/$2))}' y > all-specimen-live-stats.tsv
+# tail -n +2 all-specimen-live.txt | awk -F'\t' '{print $2}' | perl -pe 's*/media/*~/*' | awk -F/ '{print "cp ",$0,"raw-dataset/live-plants/"$3"/"$4}' | bash
+
+
+
+
+
+
+
+
+
+# find multi-dataset/ -type f -name '*.jpg' | xargs -I {} -P 4 bash -c './resizeImage.py -g $(echo {} | perl -pe "s/^multi-dataset/x-dataset/") -f {} -p -q 94 -s 1024'
 
 
 
 
 #
 # compress *-specimens.tsv
-# remove duplicates
-#   color illistration (after BR added)
-#   gray illistration (after BR added)
-# remove anything with less than 1024 on shortest side?
+# remove duplicates:
+#  ./dhash.py -i original-images/F-multi/ > x
+#  tail -n+2 x | awk -F'\t' '{print $2}' | sort | uniq -d | xargs -I {} -P 1 bash -c 'echo deleting {}; rm original-images/F-multi/$(grep -m 1 {} x | awk -F"\t" "{print \$1}")'
+#  ./dhashr.py -i raw-dataset/ > x
+#  tail -n+2 x | awk -F'\t' '{print $3}' | sort | uniq -d | xargs -I {} -P 1 bash -c 'FILE=$(grep -m 1 {} x | awk -F"\t" "{print \$1,\$2}" | tr " " "/"); echo deleting $FILE; rm -f $FILE'
+# remove similar:
+# ./dhash.py -i L/slides/ > x
+# echo '64' $(wc -l x | awk '{print $1-1}') > y
+# tail -n +2 x | awk -F'\t' 'BEGIN{x=0}{print $2,x;x++}' >> y
+# hamming y 22 > z
+# awk '{if($1<=10){print $3}}' z | sort -u > zz
+# bloom -gz create -p 0.0000001 -n $(wc -l zz | awk '{print $1}') zz.bloom.gz
+# cat zz | bloom -gz insert zz.bloom.gz
+# cat y | tr ' ' '\t' | bloom -gz -d $'\t' -f 1 -s check zz.bloom.gz | awk -F'\t' '{print $1}' > zzz
+# tail -n +2 x | awk -F'\t' 'BEGIN{x=0}{print $2}' >> zzz
+# sort zzz | uniq -c | grep ' 1 ' | awk '{print $2}' > xx
+# bloom -gz create -p 0.0000001 -n $(wc -l xx | awk '{print $1}') xx.bloom.gz
+# cat xx | bloom -gz insert xx.bloom.gz
+# cat x | bloom -gz -d $'\t' -f 1 -s check xx.bloom.gz | awk -F'\t' '{print $1}' | xargs -I {} -P 1 bash -c 'cp L/slides/{} raw-dataset/microscope-slides/L/'
+
+# drawings, live, and micrographs
+# https://sweetgum.nybg.org/science/vh/media-search/
+
+# remove anything with less than 1024 on shortest side? find raw-dataset/live-plants/ -type f -name '*.jpg' | xargs -I {} -P 4 jpeginfo {} | awk '{print $1,$2,$4}' > z; awk '{if(($2<1000)&&($3<1000)){print $1}}' z | xargs rm
 # pretrain on imagenet (without plants etc) for out-of-distribution detection? https://arxiv.org/pdf/2107.08976.pdf
 #
 
 #
-# add spirit and illustration herb
-# rename/datafile MO live specimens
-# rename/datafile NY live specimens
+# class                                      status   next action
+# aesthetically-pleasing-pressed-specimens   NDY      first check, extract from multi too?
+# animal-specimens                           NDY      download
+# biocultural-specimens                      done*    check to remove unpressed
+# corrupted-images                           NDY      get from MO backup?
+# fragmentary-pressed-specimens              NDY      make better selector
+# illustrations-color                        done*    final check
+# illustrations-gray                         done*    final check
+# live-plants                                NDY      E, MO, P, US done; make new 1k selector from BR
+# micrographs                                NDY      make new selector?
+# microscope slides                          done*    make new 4k selector for not L
+# mixed-pressed-specimens                    NDY      make new 4k selector
+# occluded-specimens                         NDY      select more images
+# ordinary-pressed-specimens                 NDY      from other classes
+# pressed-specimen-reproductions             NDY      select more images
+# pressed-specimens-closeup                  NDY      make new 4k selector
+# spirit-preserved-specimens                 NDY      select from more NY then make new selector
+# text-focused                               NDY      select more images
+# unpressed-specimens                        NDY      make new 3k selector
+# xylogical-specimens                        NDY      make new selector
 #
+
+#
+# find raw-dataset/ -type f -name '*.jpg' | awk -F/ '{print $2}' | sort | uniq -c | awk '{print $2,$1}'
+# find raw-dataset/ -type f -name '*.jpg' | awk -F/ '{print $2,$3}' | sort | uniq -c | awk 'BEGIN{OFS="\t"; c=""; n=0}{if(NR==1){c=$2}; if(c==$2){n+=$1}else{print "Total",c,n; c=$2; n=$1}; print $3,$2,$1}END{print "Total",c,n}' | datamash crosstab 2,1 unique 3 | perl -pe 's*N/A*0*g; s/^\t/Class\t/' | awk -F'\t' 'BEGIN{OFS="\t"}{if(NR>1){for(k=2; k<=NF; k++){totals[k]+=$k}}; print $0}END{printf "Total\t"; for(k=2; k<2+length(totals); k++){printf "%s\t", totals[k]}; printf "\n"}' | awk -F'\t' 'BEGIN{OFS="\t"}{print $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$20,$19}' | awk -F'\t' '{if(NR==1){print $0}else{printf $1"\t"; for(k=2; k<=NF; k++){printf("%\047d\t",$k)}; printf "\n"}}' | perl -pe 's/-/ /g; s/^([a-z])/\U$1/' | csv2md -d $'\t'
+#
+
+
