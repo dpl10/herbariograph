@@ -27,9 +27,10 @@ The dataset was constructed from a variety of public data sources detailed below
 
 
 
-## TensorFlow records
+## IMAGES
 
-[TensorFlow Record (.tfr) files]() containing images in JPEG format images.
+A label file (.tsv) and images 192 pixels on the short side (JPEG format) are archived in Dryad [7.1G]. [TensorFlow Record (.tfr) files](https://drive.google.com/file/d/1b9NwrnImA5aS4-b479xrdnb4UBFnFp4k/view?usp=sharing) containing 96² pixel images (JPEG format) are also available [1.3G].
+Additional test data in the form of a GBIF specimen survey have also been archived in Dryad: a label file (.tsv) and images 192 pixels on the short side (JPEG format) [330M] as well as TensorFlow Record (.tfr) files containing 96² pixel images (JPEG format) are available [54M].
 
 <!--  csv2md category-index.csv  -->
 
@@ -55,10 +56,75 @@ The dataset was constructed from a variety of public data sources detailed below
 
 
 
-## CODE
 
-Code developed and tested using TensorFlow 2.13.0 [official Docker images](https://hub.docker.com/r/tensorflow/tensorflow/tags).
+# CODE
+
+Code was developed and tested using TensorFlow 2.13.0 [official Docker images](https://hub.docker.com/r/tensorflow/tensorflow/tags).
+
+The ConvNeXt-T can be created by saying: 
+```bash 
+MODEL="ConvNeXt-T.keras"
+SEED=89178525
+SIZE=224
+./convnext.py -a 21000 -b 3 -e 4 -f gelu -i $SIZE -n 3:3:9:3 -o $MODEL -r $SEED -x 96 ### 43,762,344 parameters
+```
+
+Distillation of the fully–trained [3D-OFDB-21k DeiT](https://github.com/ryoo-nakamura/OFDB/) published by [Nakamura et al. (2023)](https://arxiv.org/abs/2307.14710) onto the ConvNeXt-T is accomplished by saying:
+<!-- {"GaussianNoise": 0.0, "GaussianNoiseSDmax": 0.1, "invert": 0.0, "leftRight": 0.0, "rotateOne": 0.0, "rotateThree": 0.0, "rotateTwo": 0.0, "shearX": 0.0, "shearXproportion": 0.1, "shearY": 0.0, "shearYproportion": 0.1, "solarizeAdd": 0.0, "solarizeAddition": 0.1, "solarizeAddThreshold": 0.1, "translateX": 0.0, "translateXproportion": 0.1, "translateY": 0.0, "translateYproportion": 0.1, "upDown": 0.0, "mixup": 0.0, "resizeRatioHigh": 0.75, "resizeRatioLow": 1.33, "resizeScaleHigh": 0.08, "resizeScaleLow": 1.0, "batch": 5, "clrStep": 4, "learningRate": 0.005, "distillTemperature": 12.5, "weightDecay": 1e-05} -->
+```bash
+DIR="ConvNeXt"
+GPU=0
+mkdir -p $DIR
+./distillOptimizeImagesR.py -a 21000 -e 32 -g $GPU -i $SIZE -m 3DOFDB21kViTB16-224-TF -o $DIR -r $SEED -S $SIZE -s $MODEL -t 3D-OFDB-21k-224-train-microcosm.tfr -v 3D-OFDB-21k-224-test.tfr -l manual/
+```
+
+Transfer learning for the ConvNeXt-T with the *Herbariograph* dataset is performed by saying:
+```bash
+LAST=$(ls -ltr $DIR/*/best-model.keras | awk -F"/" "{print \$2}" | tail -1)
+LAYERS=("output_gap" "convNeXt3_downSample_layerNormalization" "convNeXt2_downSample_layerNormalization" "convNeXt1_downSample_layerNormalization")
+MODEL="tune-model.keras"
+REFERENCE=$DIR"-classifier.keras"
+SIZE=96
+./convnext.py -a 17 -b 3 -e 4 -f gelu -i $SIZE -n 3:3:9:3 -o $REFERENCE -r $SEED -x 96 ### 27,626,417 parameters
+./convnextClassifier.py -e $DIR"/"$LAST"/best-model.keras" -m $REFERENCE -o $DIR"/"$LAST"/"$MODEL
+for LAYER in "${LAYERS[@]}"; do
+   MODEL=$(if [ "${LAYERS[0]}" == $LAYER ]; then echo $MODEL; else echo "best-model.keras"; fi)
+   ./trainImagesC.py -a 17 -b 256 -d 0.00005 -e 4096 -f ce+clr+aw -g $GPU -i $SIZE -l 0.00005 -m $DIR"/"$LAST"/"$MODEL -o $DIR -r $SEED -s $LAYER -t herbariograph-96-train.tfr -v herbariograph-96-validation.tfr
+   LAST=$(ls -ltr $DIR/*/best-model.keras | awk -F"/" "{print \$2}" | tail -1)
+done
+./trainImagesC4096.py -a 17 -b 256 -d 0.00005 -e 4096 -f ce+clr+aw -g $GPU -i $SIZE -l 0.00005 -m $DIR"/"$LAST"/"$MODEL -o $DIR -Q -r $SEED -s rescale -t herbariograph-96-train.tfr -v herbariograph-96-validation.tfr
+LAST=$(ls -ltr $DIR/*/best-model.keras | awk -F"/" "{print \$2}" | tail -1 | perl -pe "s/-best/-intermediate/")
+./imageSoup.py -a 17 -b 256 -d herbariograph-96-train.tfr -g $GPU -m $DIR"/"$LAST -o $DIR -T 60 -v herbariograph-96-validation.tfr
+```
+
+The final model can be evaluated by saying:
+```bash
+LAST=$(ls -ltr $DIR/*/soup-model.keras | awk -F"/" "{print \$2}" | tail -1)
+./testImages.py -a 17 -b 256 -g $GPU -i $SIZE -m $DIR"/"$LAST"/soup-model.keras" -t herbariograph-96-test.tfr
+# Test loss: 0.8199
+# Test accuracy: 96.11%
+# Test AUCPR: 98.19%
+# Test macro F1: 96.11%
+```
+
+Unknown images can be categorized by saying:
+```bash
+### download models (only needed the first time)
+for k in {0..4}; do wget "https://github.com/dpl10/herbariograph/raw/main/models.tar.0"$k; done
+cat models.tar.0* | tar xvf -
+### infer
+UNKNOWN="image-directory"
+OUTPUT="file.tsv"
+./predictImages.py -b 1024 -g $GPU -d $UNKNOWN -m ConvNeXt-N -o $OUTPUT -p 4
+```
+
+
+## TRAINED MODEL
+
+The best performing model (ConvNeXt-T) is archived in Dryad [106M].
 
 
 
-### TRAINED MODEL
+# CITATION
+
+If you use the *Herbariograph* dataset or models in your work, please cite us.
