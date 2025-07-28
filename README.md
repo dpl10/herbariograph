@@ -110,8 +110,7 @@ LAST=$(ls -ltr $DIR/*/soup-model.keras | awk -F"/" "{print \$2}" | tail -1)
 Unknown images can be categorized by saying:
 ```bash
 ### download models (only needed the first time)
-for k in {0..4}; do wget "https://github.com/dpl10/herbariograph/raw/main/models.tar.0"$k; done
-cat models.tar.0* | tar xvf -
+wget https://github.com/dpl10/herbariograph/raw/refs/heads/main/ConvNeXt-distilled.keras 
 ### infer
 UNKNOWN="image-directory"
 OUTPUT="file.tsv"
