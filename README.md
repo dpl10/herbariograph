@@ -106,7 +106,9 @@ LAST=$(ls -ltr $DIR/*/soup-model.keras | awk -F"/" "{print \$2}" | tail -1)
 # Test macro F1: 96.11%
 ```
 
-Unknown images can be categorized by saying:
+## USING THE TRAINED MODELS
+
+Both a distilled version (ConvNeXt-N [[4M]](https://github.com/dpl10/herbariograph/raw/refs/heads/main/ConvNeXt-distilled.keras)) of the best performing model and the published model (ConvNeXt-T [[106M]](https://drive.google.com/file/d/1j7GQTc1TrOvXmBRjeAJjGq799uuGnqDC/view?usp=sharing)) are available. Unknown images can be categorized by saying:
 ```bash
 ### download models (only needed the first time)
 wget https://github.com/dpl10/herbariograph/raw/refs/heads/main/ConvNeXt-distilled.keras 
@@ -115,11 +117,6 @@ UNKNOWN="image-directory"
 OUTPUT="file.tsv"
 ./predictImages.py -b 1024 -g $GPU -d $UNKNOWN -m ConvNeXt-N -o $OUTPUT -p 4
 ```
-
-
-## TRAINED MODELS
-
-Both a distilled version (ConvNeXt-N [[4M]](https://github.com/dpl10/herbariograph/raw/refs/heads/main/ConvNeXt-distilled.keras)) of the best performing model and the published model (ConvNeXt-T [[106M]](https://drive.google.com/file/d/1j7GQTc1TrOvXmBRjeAJjGq799uuGnqDC/view?usp=sharing)) are available.
 
 # CITATION
 
