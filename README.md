@@ -119,8 +119,8 @@ OUTPUT="file.tsv"
 
 ## TRAINED MODELS
 
-The best performing model (ConvNeXt-T) is also available [106M].
+Both a distilled version (ConvNeXt-N [[4M]](https://github.com/dpl10/herbariograph/raw/refs/heads/main/ConvNeXt-distilled.keras)) of the best performing model and the published model (ConvNeXt-T [[106M]](https://drive.google.com/file/d/1j7GQTc1TrOvXmBRjeAJjGq799uuGnqDC/view?usp=sharing)) are available.
 
 # CITATION
 
-If you use the *Herbariograph* dataset or models in your work, please [cite](10.1111/nph.70447) us.
+If you use the *Herbariograph* dataset or models in your work, please [cite](https://doi.org/10.1111/nph.70447) us.
