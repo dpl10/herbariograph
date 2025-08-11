@@ -29,8 +29,7 @@ The dataset was constructed from a variety of public data sources detailed below
 
 ## IMAGES
 
-A label file (.tsv) and images 192 pixels on the short side (JPEG format) are archived in Dryad [7.1G]. [TensorFlow Record (.tfr) files](https://drive.google.com/file/d/1b9NwrnImA5aS4-b479xrdnb4UBFnFp4k/view?usp=sharing) containing 96² pixel images (JPEG format) are also available [1.3G].
-Additional test data in the form of a GBIF specimen survey have also been archived in Dryad: a label file (.tsv) and images 192 pixels on the short side (JPEG format) [330M] as well as TensorFlow Record (.tfr) files containing 96² pixel images (JPEG format) are available [54M].
+TensorFlow Record (.tfr) files containing 96² pixel images (JPEG format) are available for both the main dataset [[1.3G]](https://drive.google.com/file/d/1b9NwrnImA5aS4-b479xrdnb4UBFnFp4k/view?usp=sharing) and the additional GBIF specimen survey test data [[54M]](https://drive.google.com/file/d/1iTE2ubn9N5Fw5ZHRYVjIV7BYZaNzDevf/view?usp=sharing).
 
 <!--  csv2md category-index.csv  -->
 
@@ -78,7 +77,7 @@ mkdir -p $DIR
 ./distillOptimizeImagesR.py -a 21000 -e 32 -g $GPU -i $SIZE -m 3DOFDB21kViTB16-224-TF -o $DIR -r $SEED -S $SIZE -s $MODEL -t 3D-OFDB-21k-224-train-microcosm.tfr -v 3D-OFDB-21k-224-test.tfr -l manual/
 ```
 
-Transfer learning for the ConvNeXt-T with the *Herbariograph* dataset is performed by saying:
+Transfer learning for the pretrained ConvNeXt-T with the *Herbariograph* dataset is performed by saying:
 ```bash
 LAST=$(ls -ltr $DIR/*/best-model.keras | awk -F"/" "{print \$2}" | tail -1)
 LAYERS=("output_gap" "convNeXt3_downSample_layerNormalization" "convNeXt2_downSample_layerNormalization" "convNeXt1_downSample_layerNormalization")
@@ -118,12 +117,10 @@ OUTPUT="file.tsv"
 ```
 
 
-## TRAINED MODEL
+## TRAINED MODELS
 
-The best performing model (ConvNeXt-T) is archived in Dryad [106M].
-
-
+The best performing model (ConvNeXt-T) is also available [106M].
 
 # CITATION
 
-If you use the *Herbariograph* dataset or models in your work, please cite us.
+If you use the *Herbariograph* dataset or models in your work, please [cite](10.1111/nph.70447) us.
